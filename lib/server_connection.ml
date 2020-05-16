@@ -202,37 +202,32 @@ let rec _next_read_operation t =
     | Complete -> _final_read_operation_for t reqd
 
 and _final_read_operation_for t reqd =
-  let next =
-    if not (Reqd.persistent_connection reqd) then (
-      shutdown_reader t;
-      Reader.next t.reader;
-    ) else (
-      match Reqd.output_state reqd with
-      | Waiting | Ready ->
-        (* XXX(dpatti): This is a way in which the reader and writer are not
-           parallel -- we tell the writer when it needs to yield but the reader
-           is always asking for more data. This is the only branch in either
-           operation function that does not return `(Reader|Writer).next`, which
-           means there are surprising states you can get into. For example, we
-           ask the runtime to yield but then raise when it tries to because the
-           reader is closed. I don't think checking `is_closed` here makes sense
-           semantically, but I don't think checking it in `_next_read_operation`
-           makes sense either. I chose here so I could describe why. *)
-        (* XXX(dinosaure): the comment at the top has been removed and is
-           probably associated with the commented code below, which can be found
-           upstream. *)
-        (* if Reader.is_closed t.reader
-           then Reader.next t.reader
-           else `Yield *)
-        `Yield
-      | Complete     ->
-        advance_request_queue t;
-        _next_read_operation t;
-    )
-  in
-  wakeup_writer t;
-  (* TODO(dinosaure): the upstream version does not wake-up the writer. *)
-  next
+  if not (Reqd.persistent_connection reqd) then (
+    shutdown_reader t;
+    Reader.next t.reader;
+  ) else (
+    match Reqd.output_state reqd with
+    | Waiting | Ready ->
+      (* XXX(dpatti): This is a way in which the reader and writer are not
+         parallel -- we tell the writer when it needs to yield but the reader
+         is always asking for more data. This is the only branch in either
+         operation function that does not return `(Reader|Writer).next`, which
+         means there are surprising states you can get into. For example, we
+         ask the runtime to yield but then raise when it tries to because the
+         reader is closed. I don't think checking `is_closed` here makes sense
+         semantically, but I don't think checking it in `_next_read_operation`
+         makes sense either. I chose here so I could describe why. *)
+      (* XXX(dinosaure): the comment at the top has been removed and is
+         probably associated with the commented code below, which can be found
+         upstream. *)
+      (* if Reader.is_closed t.reader
+         then Reader.next t.reader
+         else `Yield *)
+      `Yield
+    | Complete     ->
+      advance_request_queue t;
+      _next_read_operation t;
+  )
 ;;
 
 let next_read_operation t =
@@ -267,7 +262,12 @@ let rec _next_write_operation t =
   ) else (
     let reqd = current_reqd_exn t in
     match Reqd.output_state reqd with
-    | Waiting -> `Yield
+    | Waiting ->
+      (* XXX(dpatti): I don't think we should need to call this, but it is
+         necessary in the case of a streaming, non-chunked body so that you can
+         set the appropriate flag. *)
+      Reqd.flush_response_body reqd;
+      Writer.next t.writer
     | Ready ->
         Reqd.flush_response_body reqd;
         Writer.next t.writer
