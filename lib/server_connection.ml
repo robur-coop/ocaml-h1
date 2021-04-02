@@ -138,7 +138,6 @@ let error_code t =
   if is_active t then Reqd.error_code (current_reqd_exn t) else None
 
 let shutdown t =
-  Queue.clear t.request_queue;
   shutdown_reader t;
   shutdown_writer t
 
@@ -189,7 +188,8 @@ let advance_request_queue t =
     t.request_handler (Queue.peek_exn t.request_queue)
 
 let rec _next_read_operation t =
-  if not (is_active t) then (
+  if not (is_active t)
+  then (
     (* If the request queue is empty, there is no connection error, and the
        reader is closed, then we can assume that no more user code will be able
        to write. *)
@@ -232,7 +232,6 @@ and _final_read_operation_for t reqd =
 
 let next_read_operation t =
   match _next_read_operation t with
-  (* XXX(dpatti): These two [`Error _] constructors are never returned *)
   | `Error (`Parse _)             -> set_error_and_handle          t `Bad_request; `Close
   | `Error (`Bad_request request) -> set_error_and_handle ~request t `Bad_request; `Close
   | (`Read | `Yield | `Close) as operation -> operation
@@ -255,11 +254,9 @@ let read t bs ~off ~len = read_with_more t bs ~off ~len Incomplete
 let read_eof t bs ~off ~len = read_with_more t bs ~off ~len Complete
 
 let rec _next_write_operation t =
-  if not (is_active t) then (
-    if Reader.is_closed t.reader
-    then shutdown t;
-    Writer.next t.writer
-  ) else (
+  if not (is_active t)
+  then Writer.next t.writer
+  else (
     let reqd = current_reqd_exn t in
     match Reqd.output_state reqd with
     | Waiting ->
@@ -280,7 +277,7 @@ and _final_write_operation_for t reqd =
       Writer.next t.writer)
     else
       match Reqd.input_state reqd with
-      | Ready -> (* Writer.next t.writer; *) assert false
+      | Ready -> Writer.next t.writer;
       | Complete ->
           advance_request_queue t;
           _next_write_operation t
