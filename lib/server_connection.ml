@@ -210,22 +210,9 @@ and _final_read_operation_for t reqd =
   ) else (
     match Reqd.output_state reqd with
     | Waiting | Ready ->
-      (* XXX(dpatti): This is a way in which the reader and writer are not
-         parallel -- we tell the writer when it needs to yield but the reader
-         is always asking for more data. This is the only branch in either
-         operation function that does not return `(Reader|Writer).next`, which
-         means there are surprising states you can get into. For example, we
-         ask the runtime to yield but then raise when it tries to because the
-         reader is closed. I don't think checking `is_closed` here makes sense
-         semantically, but I don't think checking it in `_next_read_operation`
-         makes sense either. I chose here so I could describe why. *)
-      (* XXX(dinosaure): the comment at the top has been removed and is
-         probably associated with the commented code below, which can be found
-         upstream. *)
-      (* if Reader.is_closed t.reader
-         then Reader.next t.reader
-         else `Yield *)
-      `Yield
+      if Reader.is_closed t.reader
+      then Reader.next t.reader
+      else `Yield
     | Upgraded -> `Upgrade
     | Complete ->
       advance_request_queue t;
@@ -271,8 +258,13 @@ let rec _next_write_operation t =
     | Ready ->
       Reqd.flush_response_body reqd;
       Writer.next t.writer
-    | Complete -> _final_write_operation_for t reqd ~upgrade:false
-    | Upgraded -> _final_write_operation_for t reqd ~upgrade:true
+    | Complete -> _final_write_operation_for t reqd
+    | Upgraded ->
+      if Writer.has_pending_output t.writer then
+        (* Even in the Upgrade case, we're still responsible for writing the response
+           header, so we might have work to do. *)
+        Writer.next t.writer
+      else _final_write_operation_for t reqd
   )
 
 and _final_write_operation_for t reqd ~upgrade =

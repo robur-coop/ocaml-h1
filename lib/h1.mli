@@ -658,6 +658,8 @@ module Reqd : sig
 
   val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
 
+  val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
+
   (** {3 Exception Handling} *)
 
   val report_exn : t -> exn -> unit

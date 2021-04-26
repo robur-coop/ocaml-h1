@@ -204,6 +204,8 @@ let respond_with_upgrade ?reason t headers =
     else (
       let response = Response.create ?reason ~headers `Switching_protocols in
       t.response_state <- Upgrade response;
+      (* The parser ensures it only passes empty bodies in the case of an
+         upgrade request *)
       Body.close_reader t.request_body;
       Writer.write_response t.writer response;
       Writer.wakeup t.writer);
@@ -261,23 +263,12 @@ let error_code t =
 let persistent_connection t = t.persistent
 
 let input_state t : Input_state.t =
-  let upgrade_status =
-    match Request.is_upgrade t.request with
-    | false -> `Not_upgrading
-    | true ->
-      match t.response_state with
-      | Upgrade _ -> `Finished_upgrading
-      | Fixed _ | Streaming _ -> `Upgrade_declined
-      | Waiting -> `Upgrade_in_progress
-  in
-  match upgrade_status with
-  | `Finished_upgrading -> Upgraded
-  | `Not_upgrading | `Upgrade_declined ->
+  match t.response_state with
+  | Upgrade _ -> Upgraded
+  | Waiting | Fixed _ | Streaming _ ->
     if Body.is_closed t.request_body
     then Complete
     else Ready
-  | `Upgrade_in_progress ->
-    Waiting
 ;;
 
 let output_state t : Output_state.t =
