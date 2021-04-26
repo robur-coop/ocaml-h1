@@ -656,6 +656,8 @@ module Reqd : sig
   val respond_with_bigstring : t -> Response.t -> Bigstringaf.t -> unit
   val respond_with_streaming : ?flush_headers_immediately:bool -> t -> Response.t -> Body.Writer.t
 
+  val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
+
   (** {3 Exception Handling} *)
 
   val report_exn : t -> exn -> unit
@@ -697,7 +699,7 @@ module Server_connection : sig
   (** [create ?config ?error_handler ~request_handler] creates a connection
       handler that will service individual requests with [request_handler]. *)
 
-  val next_read_operation : t -> [ `Read | `Yield | `Close ]
+  val next_read_operation : t -> [ `Read | `Yield | `Close | `Upgrade ]
   (** [next_read_operation t] returns a value describing the next operation
       that the caller should conduct on behalf of the connection. *)
 
@@ -724,6 +726,7 @@ module Server_connection : sig
   val next_write_operation : t -> [
     | `Write of Bigstringaf.t IOVec.t list
     | `Yield
+    | `Upgrade
     | `Close of int ]
   (** [next_write_operation t] returns a value describing the next operation
       that the caller should conduct on behalf of the connection. *)
