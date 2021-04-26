@@ -1141,7 +1141,7 @@ let test_schedule_read_with_data_available () =
 ;;
 
 let test_upgrade () =
-  let upgrade_headers =["Connection", "upgrade" ; "Upgrade", "foo"] in
+  let upgrade_headers =["Connection", "Upgrade" ; "Upgrade", "foo"] in
   let request_handler reqd =
     Reqd.respond_with_upgrade reqd
       (Headers.of_list upgrade_headers)
@@ -1224,4 +1224,5 @@ let tests =
   ; "schedule read with data available", `Quick, test_schedule_read_with_data_available
   ; "test upgrades", `Quick, test_upgrade
   ; "test upgrade where server does not upgrade", `Quick, test_upgrade_where_server_does_not_upgrade
+  ; "test upgrades", `Quick, test_upgrade
   ]
