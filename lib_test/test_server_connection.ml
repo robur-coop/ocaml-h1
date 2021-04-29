@@ -1141,7 +1141,7 @@ let test_schedule_read_with_data_available () =
 ;;
 
 let test_upgrade () =
-  let upgrade_headers =["Connection", "Upgrade" ; "Upgrade", "foo"] in
+  let upgrade_headers =["Connection", "upgrade" ; "Upgrade", "foo"] in
   let request_handler reqd =
     Reqd.respond_with_upgrade reqd
       (Headers.of_list upgrade_headers)
@@ -1158,30 +1158,17 @@ let test_upgrade () =
 
 let test_upgrade_where_server_does_not_upgrade () =
   let upgrade_headers =["Connection", "upgrade" ; "Upgrade", "foo"] in
-  let reqd_ref = ref None in
-  let request_handler reqd = reqd_ref := Some reqd in
+  let response = Response.create `Bad_request ~headers:(Headers.of_list upgrade_headers) in
+  let request_handler reqd =
+    Reqd.respond_with_string reqd response ""
+  in
   let t = create request_handler in
   read_request t
     (Request.create `GET "/"
        ~headers:(Headers.of_list (("Content-Length", "0") :: upgrade_headers)));
-  (* At this point, we don't know if the response handler will call respond_with_upgrade
-     or not. So we pause the reader until that is determined. *)
-  Alcotest.check read_operation "Reader is `Yield during upgrade negotiation"
-    `Yield (current_read_operation t);
-
-  (* Now pretend the user doesn't want to do the upgrade and make sure we close the
-     connection *)
-  let reqd = Option.get !reqd_ref in
-  let response = Response.create `Bad_request ~headers:(Headers.encoding_fixed 0) in
-  Reqd.respond_with_string reqd response "";
+  Alcotest.check read_operation "Reader is `Close" `Close (current_read_operation t);
   write_response t response;
-
-  (* The connection is left healthy and can be used for more requests *)
-  read_request t (Request.create `GET "/" ~headers:(Headers.encoding_fixed 0));
-  let reqd = Option.get !reqd_ref in
-  let response = Response.create `OK ~headers:(Headers.encoding_fixed 0) in
-  Reqd.respond_with_string reqd response "";
-  write_response t response;
+  Alcotest.check write_operation "Writer is `Close" (`Close 0) (current_write_operation t);
 ;;
 
 let tests =
@@ -1225,4 +1212,5 @@ let tests =
   ; "test upgrades", `Quick, test_upgrade
   ; "test upgrade where server does not upgrade", `Quick, test_upgrade_where_server_does_not_upgrade
   ; "test upgrades", `Quick, test_upgrade
+  ; "test upgrade where server does not upgrade", `Quick, test_upgrade_where_server_does_not_upgrade
   ]
