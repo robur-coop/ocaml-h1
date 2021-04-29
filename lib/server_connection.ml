@@ -258,13 +258,8 @@ let rec _next_write_operation t =
     | Ready ->
       Reqd.flush_response_body reqd;
       Writer.next t.writer
-    | Complete -> _final_write_operation_for t reqd
-    | Upgraded ->
-      if Writer.has_pending_output t.writer then
-        (* Even in the Upgrade case, we're still responsible for writing the response
-           header, so we might have work to do. *)
-        Writer.next t.writer
-      else `Upgrade
+    | Complete -> _final_write_operation_for t reqd ~upgrade:false
+    | Upgraded -> _final_write_operation_for t reqd ~upgrade:true
   )
 
 and _final_write_operation_for t reqd ~upgrade =
