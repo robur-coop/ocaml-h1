@@ -37,7 +37,7 @@ type error =
 module Response_state = struct
   type t =
     | Waiting
-    | Upgrade of Response.t
+    | Upgrade   of Response.t
     | Fixed     of Response.t
     | Streaming of Response.t * Body.Writer.t
 end
@@ -206,7 +206,7 @@ let respond_with_upgrade ?reason t headers =
       t.response_state <- Upgrade response;
       (* The parser ensures it only passes empty bodies in the case of an
          upgrade request *)
-      Body.close_reader t.request_body;
+      assert (Body.is_closed t.request_body);
       Writer.write_response t.writer response;
       Writer.wakeup t.writer);
   | Streaming _ ->
