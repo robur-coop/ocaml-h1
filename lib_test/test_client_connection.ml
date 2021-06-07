@@ -46,7 +46,7 @@ let reader_ready t =
 
 let reader_closed t =
   Alcotest.check read_operation "Reader is closed"
-    `Close (next_read_operation t :> [`Close | `Read | `Yield]);
+    `Close (next_read_operation t :> Read_operation.t);
 ;;
 
 let write_string ?(msg="output written") t str =
