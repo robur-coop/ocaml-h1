@@ -561,6 +561,10 @@ module Request : sig
       more details. *)
 
   val pp_hum : Format.formatter -> t -> unit [@@ocaml.toplevel_printer]
+
+  val is_upgrade : t -> bool
+  (** [is_upgrade t] returns true if the request has the "Connection: upgrade"
+      header. *)
 end
 
 
@@ -658,12 +662,13 @@ module Reqd : sig
 
   val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
   (** Initiate an HTTP upgrade. [Server_connection.next_write_request] and
-      [next_read_request] will begin returning [`Upgrade] once the response headers have
-      been written, which indicates that the runtime should take over direct control of
-      the socket rather than shuttling bytes through httpaf.
+      [next_read_request] will begin returning [`Upgrade] once the response
+      headers have been written, which indicates that the runtime should take
+      over direct control of the socket rather than shuttling bytes through
+      httpaf.
 
-      The headers must indicate a valid upgrade message, e.g. must include "Connection:
-      upgrade". *)
+      The headers must indicate a valid upgrade message, e.g. must include
+      "Connection: upgrade". See [Request.is_upgrade]. *)
 
   val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
 
