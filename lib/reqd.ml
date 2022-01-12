@@ -266,8 +266,8 @@ let input_state t : Input_state.t =
   match t.response_state with
   | Upgrade _ -> Upgraded
   | Waiting when Request.is_upgrade t.request -> Waiting
-  | _ ->
-    if Body.is_closed t.request_body
+  | Waiting | Fixed _ | Streaming _ ->
+    if Body.Reader.is_closed t.request_body
     then Complete
     else Ready
 ;;
