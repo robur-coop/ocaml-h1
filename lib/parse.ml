@@ -237,7 +237,7 @@ module Reader = struct
       match Request.body_length request with
       | `Error `Bad_request -> return (Error (`Bad_request request))
       | `Fixed 0L  ->
-        handler request Body.empty;
+        handler request Body.Reader.empty;
         ok
       | `Fixed _ | `Chunked when Request.is_upgrade request ->
         return (Error (`Bad_request request))
@@ -259,7 +259,7 @@ module Reader = struct
       | `Error `Internal_server_error ->
           return (Error (`Invalid_response_body_length response))
       | `Fixed 0L ->
-        handler response Body.empty;
+        handler response Body.Reader.empty;
         ok
       | `Fixed _ | `Chunked | `Close_delimited as encoding ->
         (* We do not trust the length provided in the [`Fixed] case, as the
