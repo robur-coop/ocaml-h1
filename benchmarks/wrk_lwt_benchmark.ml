@@ -11,7 +11,7 @@ let main port =
     Lwt_io.establish_server_with_client_socket
       ~backlog:11_000
       listen_address
-      (Server.create_connection_handler ~request_handler ~error_handler)
+      (Server.create_connection_handler ~request_handler ~error_handler ~upgrade_handler:None)
     >>= fun _server -> Lwt.return_unit
   end;
   let forever, _ = Lwt.wait () in
