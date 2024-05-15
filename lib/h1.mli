@@ -670,8 +670,6 @@ module Reqd : sig
       The headers must indicate a valid upgrade message, e.g. must include
       "Connection: upgrade". See [Request.is_upgrade]. *)
 
-  val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
-
   (** {3 Exception Handling} *)
 
   val report_exn : t -> exn -> unit
