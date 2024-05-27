@@ -1,6 +1,6 @@
 (library
- (name        httpaf)
- (public_name httpaf)
+ (name        h1)
+ (public_name h1)
  (libraries
    angstrom faraday bigstringaf)
  (flags (:standard -safe-string)))

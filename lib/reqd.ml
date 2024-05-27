@@ -37,21 +37,16 @@ type error =
 module Response_state = struct
   type t =
     | Waiting
-    | Fixed     of Response.t
+    | Fixed of Response.t
     | Streaming of Response.t * Body.Writer.t
 end
 
 module Input_state = struct
-  type t =
-    | Ready
-    | Complete
+  type t = Ready | Complete
 end
 
 module Output_state = struct
-  type t =
-    | Waiting
-    | Ready
-    | Complete
+  type t = Waiting | Ready | Complete
 end
 
 type error_handler =
@@ -82,26 +77,27 @@ module Writer = Serialize.Writer
  *  ]}
  *
  * *)
-type t =
-  { request                 : Request.t
-  ; request_body            : Body.Reader.t
-  ; writer                  : Writer.t
-  ; response_body_buffer    : Bigstringaf.t
-  ; error_handler           : error_handler
-  ; mutable persistent      : bool
-  ; mutable response_state  : Response_state.t
-  ; mutable error_code      : [`Ok | error ]
-  }
+type t = {
+  request : Request.t;
+  request_body : Body.Reader.t;
+  writer : Writer.t;
+  response_body_buffer : Bigstringaf.t;
+  error_handler : error_handler;
+  mutable persistent : bool;
+  mutable response_state : Response_state.t;
+  mutable error_code : [ `Ok | error ];
+}
 
 let create error_handler request request_body writer response_body_buffer =
-  { request
-  ; request_body
-  ; writer
-  ; response_body_buffer
-  ; error_handler
-  ; persistent              = Request.persistent_connection request
-  ; response_state          = Waiting
-  ; error_code              = `Ok
+  {
+    request;
+    request_body;
+    writer;
+    response_body_buffer;
+    error_handler;
+    persistent = Request.persistent_connection request;
+    response_state = Waiting;
+    error_code = `Ok;
   }
 
 let request { request; _ } = request
@@ -110,152 +106,144 @@ let request_body { request_body; _ } = request_body
 let response { response_state; _ } =
   match response_state with
   | Waiting -> None
-  | Streaming (response, _)
-  | Fixed response -> Some response
+  | Streaming (response, _) | Fixed response -> Some response
 
 let response_exn { response_state; _ } =
   match response_state with
-  | Waiting -> failwith "httpaf.Reqd.response_exn: response has not started"
-  | Streaming (response, _)
-  | Fixed response -> response
+  | Waiting -> failwith "H1.Reqd.response_exn: response has not started"
+  | Streaming (response, _) | Fixed response -> response
 
 let respond_with_string t response str =
   if t.error_code <> `Ok then
-    failwith "httpaf.Reqd.respond_with_string: invalid state, currently handling error";
+    failwith
+      "H1.Reqd.respond_with_string: invalid state, currently handling error";
   match t.response_state with
   | Waiting ->
-    (* XXX(seliopou): check response body length *)
-    Writer.write_response t.writer response;
-    Writer.write_string t.writer str;
-    if t.persistent then
-      t.persistent <- Response.persistent_connection response;
-    t.response_state <- Fixed response;
-    Writer.wakeup t.writer;
+      (* XXX(seliopou): check response body length *)
+      Writer.write_response t.writer response;
+      Writer.write_string t.writer str;
+      if t.persistent then
+        t.persistent <- Response.persistent_connection response;
+      t.response_state <- Fixed response;
+      Writer.wakeup t.writer
   | Streaming _ ->
-    failwith "httpaf.Reqd.respond_with_string: response already started"
-  | Fixed _ ->
-    failwith "httpaf.Reqd.respond_with_string: response already complete"
+      failwith "H1.Reqd.respond_with_string: response already started"
+  | Fixed _ -> failwith "H1.Reqd.respond_with_string: response already complete"
 
-let respond_with_bigstring t response (bstr:Bigstringaf.t) =
+let respond_with_bigstring t response (bstr : Bigstringaf.t) =
   if t.error_code <> `Ok then
-    failwith "httpaf.Reqd.respond_with_bigstring: invalid state, currently handling error";
+    failwith
+      "H1.Reqd.respond_with_bigstring: invalid state, currently handling error";
   match t.response_state with
   | Waiting ->
-    (* XXX(seliopou): check response body length *)
-    Writer.write_response     t.writer response;
-    Writer.schedule_bigstring t.writer bstr;
-    if t.persistent then
-      t.persistent <- Response.persistent_connection response;
-    t.response_state <- Fixed response;
-    Writer.wakeup t.writer;
+      (* XXX(seliopou): check response body length *)
+      Writer.write_response t.writer response;
+      Writer.schedule_bigstring t.writer bstr;
+      if t.persistent then
+        t.persistent <- Response.persistent_connection response;
+      t.response_state <- Fixed response;
+      Writer.wakeup t.writer
   | Streaming _ ->
-    failwith "httpaf.Reqd.respond_with_bigstring: response already started"
+      failwith "H1.Reqd.respond_with_bigstring: response already started"
   | Fixed _ ->
-    failwith "httpaf.Reqd.respond_with_bigstring: response already complete"
+      failwith "H1.Reqd.respond_with_bigstring: response already complete"
 
 let unsafe_respond_with_streaming ~flush_headers_immediately t response =
   match t.response_state with
   | Waiting ->
-    let encoding =
-      match Response.body_length ~request_method:t.request.meth response with
-      | `Fixed _ | `Close_delimited | `Chunked as encoding -> encoding
-      | `Error (`Bad_gateway | `Internal_server_error) ->
-        failwith "httpaf.Reqd.respond_with_streaming: invalid response body length"
-    in
-    let response_body =
-      Body.Writer.create t.response_body_buffer ~encoding ~when_ready_to_write:(fun () ->
-        Writer.wakeup t.writer)
-    in
-    Writer.write_response t.writer response;
-    if t.persistent then
-      t.persistent <- Response.persistent_connection response;
-    t.response_state <- Streaming (response, response_body);
-    if flush_headers_immediately
-    then Writer.wakeup t.writer;
-    response_body
+      let encoding =
+        match Response.body_length ~request_method:t.request.meth response with
+        | (`Fixed _ | `Close_delimited | `Chunked) as encoding -> encoding
+        | `Error (`Bad_gateway | `Internal_server_error) ->
+            failwith
+              "H1.Reqd.respond_with_streaming: invalid response body length"
+      in
+      let response_body =
+        Body.Writer.create t.response_body_buffer ~encoding
+          ~when_ready_to_write:(fun () -> Writer.wakeup t.writer)
+      in
+      Writer.write_response t.writer response;
+      if t.persistent then
+        t.persistent <- Response.persistent_connection response;
+      t.response_state <- Streaming (response, response_body);
+      if flush_headers_immediately then Writer.wakeup t.writer;
+      response_body
   | Streaming _ ->
-    failwith "httpaf.Reqd.respond_with_streaming: response already started"
+      failwith "H1.Reqd.respond_with_streaming: response already started"
   | Fixed _ ->
-    failwith "httpaf.Reqd.respond_with_streaming: response already complete"
+      failwith "H1.Reqd.respond_with_streaming: response already complete"
 
-let respond_with_streaming ?(flush_headers_immediately=false) t response =
+let respond_with_streaming ?(flush_headers_immediately = false) t response =
   if t.error_code <> `Ok then
-    failwith "httpaf.Reqd.respond_with_streaming: invalid state, currently handling error";
+    failwith
+      "H1.Reqd.respond_with_streaming: invalid state, currently handling error";
   unsafe_respond_with_streaming ~flush_headers_immediately t response
 
 let report_error t error =
   t.persistent <- false;
   Body.Reader.close t.request_body;
-  match t.response_state, t.error_code with
+  match (t.response_state, t.error_code) with
   | Waiting, `Ok ->
-    t.error_code <- (error :> [`Ok | error]);
-    let status =
-      match (error :> [error | Status.standard]) with
-      | `Exn _                     -> `Internal_server_error
-      | #Status.standard as status -> status
-    in
-    t.error_handler ~request:t.request error (fun headers ->
-      unsafe_respond_with_streaming ~flush_headers_immediately:true t
-        (Response.create ~headers status))
+      t.error_code <- (error :> [ `Ok | error ]);
+      let status =
+        match (error :> [ error | Status.standard ]) with
+        | `Exn _ -> `Internal_server_error
+        | #Status.standard as status -> status
+      in
+      t.error_handler ~request:t.request error (fun headers ->
+          unsafe_respond_with_streaming ~flush_headers_immediately:true t
+            (Response.create ~headers status))
   | Waiting, `Exn _ ->
-    (* XXX(seliopou): Decide what to do in this unlikely case. There is an
-     * outstanding call to the [error_handler], but an intervening exception
-     * has been reported as well. *)
-    failwith "httpaf.Reqd.report_exn: NYI"
-  | Streaming (_response, response_body), `Ok ->
-    Body.Writer.close response_body
+      (* XXX(seliopou): Decide what to do in this unlikely case. There is an
+       * outstanding call to the [error_handler], but an intervening exception
+       * has been reported as well. *)
+      failwith "H1.Reqd.report_exn: NYI"
+  | Streaming (_response, response_body), `Ok -> Body.Writer.close response_body
   | Streaming (_response, response_body), `Exn _ ->
-    Body.Writer.close response_body;
-    Writer.close_and_drain t.writer
-  | (Fixed _ | Streaming _ | Waiting) , _ ->
-    (* XXX(seliopou): Once additional logging support is added, log the error
-     * in case it is not spurious. *)
-    ()
+      Body.Writer.close response_body;
+      Writer.close_and_drain t.writer
+  | (Fixed _ | Streaming _ | Waiting), _ ->
+      (* XXX(seliopou): Once additional logging support is added, log the error
+       * in case it is not spurious. *)
+      ()
 
-let report_exn t exn =
-  report_error t (`Exn exn)
+let report_exn t exn = report_error t (`Exn exn)
 
 let try_with t f : (unit, exn) result =
-  try f (); Ok () with exn -> report_exn t exn; Error exn
+  try
+    f ();
+    Ok ()
+  with exn ->
+    report_exn t exn;
+    Error exn
 
-(* Private API, not exposed to the user through httpaf.mli *)
+(* Private API, not exposed to the user through h1.mli *)
 
-let close_request_body { request_body; _ } =
-  Body.Reader.close request_body
+let close_request_body { request_body; _ } = Body.Reader.close request_body
 
 let error_code t =
-  match t.error_code with
-  | #error as error -> Some error
-  | `Ok             -> None
+  match t.error_code with #error as error -> Some error | `Ok -> None
 
-let persistent_connection t =
-  t.persistent
+let persistent_connection t = t.persistent
 
 let input_state t : Input_state.t =
-  if Body.Reader.is_closed t.request_body
-  then Complete
-  else Ready
-;;
+  if Body.Reader.is_closed t.request_body then Complete else Ready
 
 let output_state t : Output_state.t =
   match t.response_state with
   | Fixed _ -> Complete
   | Streaming (_, response_body) ->
-    if Body.Writer.has_pending_output response_body
-    then Ready
-    else if Body.Writer.is_closed response_body
-    then Complete
-    else Waiting
+      if Body.Writer.has_pending_output response_body then Ready
+      else if Body.Writer.is_closed response_body then Complete
+      else Waiting
   | Waiting -> Waiting
-;;
 
 let flush_request_body t =
-  if Body.Reader.has_pending_output t.request_body
-  then try Body.Reader.execute_read t.request_body
-  with exn -> report_exn t exn
+  if Body.Reader.has_pending_output t.request_body then
+    try Body.Reader.execute_read t.request_body with exn -> report_exn t exn
 
 let flush_response_body t =
   match t.response_state with
   | Streaming (_, response_body) ->
-    Body.Writer.transfer_to_writer response_body t.writer
+      Body.Writer.transfer_to_writer response_body t.writer
   | _ -> ()

@@ -1,4 +1,4 @@
-open Httpaf
+open H1
 open Request
 open Helpers
 
@@ -12,7 +12,7 @@ let check =
   in
   fun message ~expect input ->
     let actual =
-      Angstrom.parse_string ~consume:All Httpaf_private.Parse.request input
+      Angstrom.parse_string ~consume:All H1_private.Parse.request input
     in
     Alcotest.check alco message expect actual
 ;;

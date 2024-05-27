@@ -1,12 +1,8 @@
 (executable
- (name wrk_async_benchmark)
- (modules wrk_async_benchmark)
- (libraries httpaf httpaf_examples httpaf-async async core))
-
-(executable
  (name wrk_lwt_benchmark)
  (modules Wrk_lwt_benchmark)
- (libraries httpaf httpaf_examples httpaf-lwt-unix lwt.unix base))
+ (optional true)
+ (libraries h1 h1_examples h1-lwt-unix lwt.unix base))
 
 (alias
  (name benchmarks)

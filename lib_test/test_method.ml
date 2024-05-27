@@ -1,4 +1,4 @@
-open Httpaf
+open H1
 open Method
 
 let test_is_safe () =

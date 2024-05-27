@@ -1,9 +1,9 @@
 open Base
 open Lwt.Infix
-module Arg = Caml.Arg
+module Arg = Stdlib.Arg
 
-open Httpaf
-open Httpaf_lwt_unix
+open H1
+open H1_lwt_unix
 
 let main port host =
   Lwt_unix.getaddrinfo host (Int.to_string port) [Unix.(AI_FAMILY PF_INET)]
@@ -13,12 +13,12 @@ let main port host =
   >>= fun () ->
   let finished, notify_finished = Lwt.wait () in
   let response_handler =
-    Httpaf_examples.Client.print ~on_eof:(Lwt.wakeup_later notify_finished)
+    H1_examples.Client.print ~on_eof:(Lwt.wakeup_later notify_finished)
   in
   let headers = Headers.of_list [ "host", host ] in
   let request_body =
     Client.request
-      ~error_handler:Httpaf_examples.Client.error_handler
+      ~error_handler:H1_examples.Client.error_handler
       ~response_handler
       socket
       (Request.create ~headers `GET "/")
