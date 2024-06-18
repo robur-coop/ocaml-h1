@@ -844,7 +844,7 @@ end
 
 (**/**)
 
-module Httpaf_private : sig
+module H1_private : sig
   module Parse : sig
     val request : Request.t Angstrom.t
     val response : Response.t Angstrom.t

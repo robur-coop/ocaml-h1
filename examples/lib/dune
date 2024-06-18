@@ -1,4 +1,4 @@
 (library
- (name        httpaf_examples)
- (libraries   httpaf base stdio)
+ (name        h1_examples)
+ (libraries   h1 base stdio)
  (flags (:standard -safe-string)))

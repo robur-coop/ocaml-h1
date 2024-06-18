@@ -1,20 +1,20 @@
 (executables
- (libraries bigstringaf httpaf alcotest)
+ (libraries bigstringaf h1 alcotest)
  (modules
    helpers
    test_client_connection
    test_headers
-   test_httpaf
+   test_h1
    test_iovec
    test_method
    test_request
    test_response
    test_server_connection
    test_version)
- (names   test_httpaf))
+ (names   test_h1))
 
-(alias
- (name runtest)
- (package httpaf)
- (deps test_httpaf.exe)
+(rule
+ (alias runtest)
+ (package h1)
+ (deps test_h1.exe)
  (action (run %{deps})))

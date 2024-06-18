@@ -1,0 +1,23 @@
+opam-version: "2.0"
+name: "h1-lwt-unix"
+maintainer: "Romain Calascibetta <romain.calascibetta@gmail.com>"
+authors: [
+  "Anton Bachin <antonbachin@yahoo.com>"
+  "Spiros Eliopoulos <spiros@inhabitedtype.com>"
+]
+license: "BSD-3-clause"
+homepage: "https://github.com/robur-coop/ocaml-h1"
+bug-reports: "https://github.com/robur-coop/ocaml-h1/issues"
+dev-repo: "git+https://github.com/robur-coop/ocaml-h1.git"
+build: [
+  ["dune" "subst"] {dev}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "4.03.0"}
+  "faraday-lwt-unix"
+  "h1" {= version}
+  "dune" {>= "1.5.0"}
+  "lwt" {>= "2.4.7"}
+]
+synopsis: "Lwt support for ocaml-h1"

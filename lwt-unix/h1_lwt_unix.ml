@@ -103,12 +103,12 @@ let shutdown socket command =
   try Lwt_unix.shutdown socket command
   with Unix.Unix_error (Unix.ENOTCONN, _, _) -> ()
 
-module Config = Httpaf.Config
+module Config = H1.Config
 
 module Server = struct
   let create_connection_handler ?(config=Config.default) ~request_handler ~error_handler =
     fun client_addr socket ->
-      let module Server_connection = Httpaf.Server_connection in
+      let module Server_connection = H1.Server_connection in
       let connection =
         Server_connection.create
           ~config
@@ -205,7 +205,7 @@ end
 
 module Client = struct
   let request ?(config=Config.default) socket request ~error_handler ~response_handler =
-    let module Client_connection = Httpaf.Client_connection in
+    let module Client_connection = H1.Client_connection in
     let request_body, connection =
       Client_connection.request ~config request ~error_handler ~response_handler in
 

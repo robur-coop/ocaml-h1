@@ -9,7 +9,7 @@ the parsing and serialization layers of the HTTP standard, hence the name.
 
 [angstrom]: https://github.com/inhabitedtype/angstrom
 [faraday]: https://github.com/inhabitedtype/faraday
-[![Build Status](https://github.com/inhabitedtype/httpaf/workflows/build/badge.svg)](https://github.com/inhabitedtype/httpaf/actions?query=workflow%3A%22build%22)]
+[![Build Status](https://github.com/robur-coop/ocaml-h1/workflows/build/badge.svg)](https://github.com/robur-coop/ocaml-h1/actions?query=workflow%3A%22build%22)]
 
 ## Installation
 
@@ -18,21 +18,21 @@ Install the library and its dependencies via [OPAM][opam]:
 [opam]: http://opam.ocaml.org/
 
 ```bash
-opam install httpaf
+opam install h1
 ```
 
 ## Usage
 
-Here is a Hello, World! program written using httpaf. It only responds to `GET`
+Here is a Hello, World! program written using h1. It only responds to `GET`
 requests to the `/hello/*` target. As it does not itself do any IO, it can be
 used with both the Async and Lwt runtimes. See the [`examples`][examples] directory for
 usage of the individual runtimes.
 
-[examples]: https://github.com/inhabitedtype/httpaf/tree/master/examples
+[examples]: https://github.com/robur-coop/ocaml-h1/tree/master/examples
 
 ```ocaml
-open Httpaf
-module String = Caml.String
+open H1
+module String = Stdlib.String
 
 let invalid_request reqd status body =
   (* Responses without an explicit length or transfer-encoding are
@@ -82,7 +82,7 @@ virtual cores, the host being circa 2015 MacBook Pro:
 
 [328]: https://github.com/mirage/ocaml-cohttp/issues/328
 
-![http/af comparsion to cohttp](https://raw.githubusercontent.com/inhabitedtype/httpaf/master/images/httpaf-comparison.png)
+![h1 comparsion to cohttp](https://raw.githubusercontent.com/robur-coop/h1/master/images/h1-comparison.png)
 
 The http/af latency histogram, relative to the cohttp histograms, is pretty
 much flat along the x-axis. Here are some additional statistics from that run
@@ -102,8 +102,8 @@ To install development dependencies, pin the package from the root of the
 repository:
 
 ```bash
-opam pin add -n httpaf .
-opam install --deps-only httpaf
+opam pin add -n h1 .
+opam install --deps-only h1
 ```
 
 After this, you may install a development version of the library using the

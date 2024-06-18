@@ -8,11 +8,8 @@ all: build
 test:
 	dune runtest
 
-examples:
-	dune build @examples
-
 watch:
-	dune build {httpaf,httpaf-async,httpaf-lwt-unix}.install @runtest --watch
+	dune build {h1,h1-lwt-unix}.install @runtest --watch
 
 install:
 	dune install

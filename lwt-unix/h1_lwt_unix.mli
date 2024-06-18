@@ -32,7 +32,7 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
-open Httpaf
+open H1
 
 
 (* The function that results from [create_connection_handler] should be passed
@@ -51,10 +51,10 @@ end
 (* For an example, see [examples/lwt_get.ml]. *)
 module Client : sig
   val request
-    :  ?config          : Httpaf.Config.t
+    :  ?config          : H1.Config.t
     -> Lwt_unix.file_descr
     -> Request.t
     -> error_handler    : Client_connection.error_handler
     -> response_handler : Client_connection.response_handler
-    -> Httpaf.Body.Writer.t
+    -> H1.Body.Writer.t
 end

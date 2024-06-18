@@ -31,39 +31,34 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
-
 include Angstrom
 
 module P = struct
-  let is_space =
-    function | ' ' | '\t' -> true | _ -> false
+  let is_space = function ' ' | '\t' -> true | _ -> false
+  let is_cr = function '\r' -> true | _ -> false
+  let is_space_or_colon = function ' ' | '\t' | ':' -> true | _ -> false
 
-  let is_cr =
-    function | '\r' -> true | _ -> false
+  let is_hex = function
+    | '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true
+    | _ -> false
 
-  let is_space_or_colon =
-    function | ' ' | '\t' | ':' -> true | _ -> false
+  let is_digit = function '0' .. '9' -> true | _ -> false
 
-  let is_hex =
-    function | '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true | _ -> false
-
-  let is_digit =
-    function '0' .. '9' -> true | _ -> false
-
-  let is_separator =
-    function
-      | ')' | '(' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"'
-      | '/' | '[' | ']' | '?' | '=' | '{' | '}' | ' ' | '\t' -> true
-      | _ -> false
+  let is_separator = function
+    | ')' | '(' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/' | '['
+    | ']' | '?' | '=' | '{' | '}' | ' ' | '\t' ->
+        true
+    | _ -> false
 
   let is_token =
     (* The commented-out ' ' and '\t' are not necessary because of the range at
      * the top of the match. *)
     function
-      | '\000' .. '\031' | '\127'
-      | ')' | '(' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"'
-      | '/' | '[' | ']' | '?' | '=' | '{' | '}' (* | ' ' | '\t' *) -> false
-      | _ -> true
+    | '\000' .. '\031'
+    | '\127' | ')' | '(' | '<' | '>' | '@' | ',' | ';' | ':' | '\\' | '"' | '/'
+    | '[' | ']' | '?' | '=' | '{' | '}' (* | ' ' | '\t' *) ->
+        false
+    | _ -> true
 end
 
 let unit = return ()
@@ -71,36 +66,45 @@ let token = take_while1 P.is_token
 let spaces = skip_while P.is_space
 
 let digit =
-  satisfy P.is_digit
-  >>| function
-    | '0' -> 0 | '1' -> 1 | '2' -> 2 | '3' -> 3 | '4' -> 4 | '5' -> 5
-    | '6' -> 6 | '7' -> 7 | '8' -> 8 | '9' -> 9 | _ -> assert false
+  satisfy P.is_digit >>| function
+  | '0' -> 0
+  | '1' -> 1
+  | '2' -> 2
+  | '3' -> 3
+  | '4' -> 4
+  | '5' -> 5
+  | '6' -> 6
+  | '7' -> 7
+  | '8' -> 8
+  | '9' -> 9
+  | _ -> assert false
 
 let eol = string "\r\n" <?> "eol"
-let hex str =
-  try return (Int64.of_string ("0x" ^ str)) with _ -> fail "hex"
+let hex str = try return (Int64.of_string ("0x" ^ str)) with _ -> fail "hex"
 let skip_line = take_till P.is_cr *> eol
 
 let version =
-  string "HTTP/" *>
-  lift2 (fun major minor -> { Version.major; minor })
-    (digit <* char '.')
-    digit
+  string "HTTP/"
+  *> lift2
+       (fun major minor -> { Version.major; minor })
+       (digit <* char '.')
+       digit
 
 let header =
   (* From RFC7230§3.2.4:
 
-       "No whitespace is allowed between the header field-name and colon.  In
-       the past, differences in the handling of such whitespace have led to
-       security vulnerabilities in request routing and response handling.  A
-       server MUST reject any received request message that contains whitespace
-       between a header field-name and colon with a response code of 400 (Bad
-       Request).  A proxy MUST remove any such whitespace from a response
-       message before forwarding the message downstream."
+        "No whitespace is allowed between the header field-name and colon.  In
+        the past, differences in the handling of such whitespace have led to
+        security vulnerabilities in request routing and response handling.  A
+        server MUST reject any received request message that contains whitespace
+        between a header field-name and colon with a response code of 400 (Bad
+        Request).  A proxy MUST remove any such whitespace from a response
+        message before forwarding the message downstream."
 
-    This can be detected by checking the message and marks in a parse failure,
-    which should look like this when serialized "... > header > :". *)
-  lift2 (fun key value -> (key, value))
+     This can be detected by checking the message and marks in a parse failure,
+     which should look like this when serialized "... > header > :". *)
+  lift2
+    (fun key value -> (key, value))
     (take_till P.is_space_or_colon <* char ':' <* spaces)
     (take_till P.is_cr <* eol >>| String.trim)
   <?> "header"
@@ -108,40 +112,36 @@ let header =
 let headers =
   let cons x xs = x :: xs in
   fix (fun headers ->
-    let _emp = return [] in
-    let _rec = lift2 cons header headers in
-    peek_char_fail
-    >>= function
-      | '\r' -> _emp
-      | _    -> _rec)
+      let _emp = return [] in
+      let _rec = lift2 cons header headers in
+      peek_char_fail >>= function '\r' -> _emp | _ -> _rec)
   >>| Headers.of_list
 
 let request =
   let meth = take_till P.is_space >>| Method.of_string in
-  lift4 (fun meth target version headers ->
-    Request.create ~version ~headers meth target)
-    (meth                 <* char ' ')
+  lift4
+    (fun meth target version headers ->
+      Request.create ~version ~headers meth target)
+    (meth <* char ' ')
     (take_till P.is_space <* char ' ')
-    (version              <* eol <* commit)
-    (headers              <* eol)
+    (version <* eol <* commit)
+    (headers <* eol)
 
 let response =
   let status =
-    take_while P.is_digit
-    >>= fun str ->
-      if String.length str = 0
-      then fail "status-code empty"
-      else (
-        if String.length str > 3
-        then fail (Printf.sprintf "status-code too long: %S" str)
-        else return (Status.of_string str))
+    take_while P.is_digit >>= fun str ->
+    if String.length str = 0 then fail "status-code empty"
+    else if String.length str > 3 then
+      fail (Printf.sprintf "status-code too long: %S" str)
+    else return (Status.of_string str)
   in
-  lift4 (fun version status reason headers ->
-    Response.create ~reason ~version ~headers status)
-    (version              <* char ' ')
-    (status               <* char ' ')
-    (take_till P.is_cr    <* eol <* commit)
-    (headers              <* eol)
+  lift4
+    (fun version status reason headers ->
+      Response.create ~reason ~version ~headers status)
+    (version <* char ' ')
+    (status <* char ' ')
+    (take_till P.is_cr <* eol <* commit)
+    (headers <* eol)
 
 let finish body =
   Body.Reader.close body;
@@ -152,89 +152,83 @@ let schedule_size body n =
   (* XXX(seliopou): performance regression due to switching to a single output
    * format in Farady. Once a specialized operation is exposed to avoid the
    * intemediate copy, this should be back to the original performance. *)
-  begin if Faraday.is_closed faraday
-  then advance n
-  else take n >>| fun s -> Faraday.write_string faraday s
-  end *> commit
+  (if Faraday.is_closed faraday then advance n
+   else take n >>| fun s -> Faraday.write_string faraday s)
+  *> commit
 
 let body ~encoding body =
   let rec fixed n ~unexpected =
-    if n = 0L
-    then unit
+    if n = 0L then unit
     else
-      at_end_of_input
-      >>= function
-        | true  ->
-          finish body *> fail unexpected
-        | false ->
+      at_end_of_input >>= function
+      | true -> finish body *> fail unexpected
+      | false ->
           available >>= fun m ->
           let m' = Int64.(min (of_int m) n) in
           let n' = Int64.sub n m' in
-          schedule_size body (Int64.to_int m') >>= fun () -> fixed n' ~unexpected
+          schedule_size body (Int64.to_int m') >>= fun () ->
+          fixed n' ~unexpected
   in
   match encoding with
   | `Fixed n ->
-    fixed n ~unexpected:"expected more from fixed body"
-    >>= fun () -> finish body
+      fixed n ~unexpected:"expected more from fixed body" >>= fun () ->
+      finish body
   | `Chunked ->
-    (* XXX(seliopou): The [eol] in this parser should really parse a collection
-     * of "chunk extensions", as defined in RFC7230§4.1. These do not show up
-     * in the wild very frequently, and the httpaf API has no way of exposing
-     * them to the suer, so for now the parser does not attempt to recognize
-     * them. This means that any chunked messages that contain chunk extensions
-     * will fail to parse. *)
-    fix (fun p ->
-      let _hex =
-        (take_while1 P.is_hex >>= fun size -> hex size)
-        (* swallows chunk-ext, if present, and CRLF *)
-        <* (eol *> commit)
-      in
-      _hex >>= fun size ->
-      if size = 0L
-      then eol >>= fun _eol -> finish body
-      else fixed size ~unexpected:"expected more from body chunk" *> eol *> p)
+      (* XXX(seliopou): The [eol] in this parser should really parse a collection
+       * of "chunk extensions", as defined in RFC7230§4.1. These do not show up
+       * in the wild very frequently, and the h1 API has no way of exposing
+       * them to the suer, so for now the parser does not attempt to recognize
+       * them. This means that any chunked messages that contain chunk extensions
+       * will fail to parse. *)
+      fix (fun p ->
+          let _hex =
+            take_while1 P.is_hex
+            >>= (fun size -> hex size)
+            (* swallows chunk-ext, if present, and CRLF *)
+            <* eol *> commit
+          in
+          _hex >>= fun size ->
+          if size = 0L then eol >>= fun _eol -> finish body
+          else
+            fixed size ~unexpected:"expected more from body chunk" *> eol *> p)
   | `Close_delimited ->
-    fix (fun p ->
-      let _rec = (available >>= fun n -> schedule_size body n) *> p in
-      at_end_of_input
-      >>= function
-        | true  -> finish body
-        | false -> _rec)
+      fix (fun p ->
+          let _rec = (available >>= fun n -> schedule_size body n) *> p in
+          at_end_of_input >>= function true -> finish body | false -> _rec)
 
 module Reader = struct
   module AU = Angstrom.Unbuffered
 
-  type request_error = [
-    | `Bad_request of Request.t
-    | `Parse of string list * string ]
+  type request_error =
+    [ `Bad_request of Request.t | `Parse of string list * string ]
 
-  type response_error = [
-    | `Invalid_response_body_length of Response.t
+  type response_error =
+    [ `Invalid_response_body_length of Response.t
     | `Parse of string list * string ]
 
   type 'error parse_state =
     | Done
-    | Fail    of 'error
-    | Partial of (Bigstringaf.t -> off:int -> len:int -> AU.more -> (unit, 'error) result AU.state)
+    | Fail of 'error
+    | Partial of
+        (Bigstringaf.t ->
+        off:int ->
+        len:int ->
+        AU.more ->
+        (unit, 'error) result AU.state)
 
-  type 'error t =
-    { parser              : (unit, 'error) result Angstrom.t
-    ; mutable parse_state : 'error parse_state
-      (* The state of the parse for the current request *)
-    ; mutable closed      : bool
-      (* Whether the input source has left the building, indicating that no
-       * further input will be received. *)
-    }
+  type 'error t = {
+    parser : (unit, 'error) result Angstrom.t;
+    mutable parse_state : 'error parse_state;
+        (* The state of the parse for the current request *)
+    mutable closed : bool;
+        (* Whether the input source has left the building, indicating that no
+         * further input will be received. *)
+  }
 
-  type request  = request_error t
+  type request = request_error t
   type response = response_error t
 
-  let create parser =
-    { parser
-    ; parse_state = Done
-    ; closed      = false
-    }
-
+  let create parser = { parser; parse_state = Done; closed = false }
   let ok = return (Ok ())
 
   let request handler =
@@ -242,13 +236,13 @@ module Reader = struct
       request <* commit >>= fun request ->
       match Request.body_length request with
       | `Error `Bad_request -> return (Error (`Bad_request request))
-      | `Fixed 0L  ->
-        handler request Body.Reader.empty;
-        ok
-      | `Fixed _ | `Chunked as encoding ->
-        let request_body = Body.Reader.create Bigstringaf.empty in
-        handler request request_body;
-        body ~encoding request_body *> ok
+      | `Fixed 0L ->
+          handler request Body.Reader.empty;
+          ok
+      | (`Fixed _ | `Chunked) as encoding ->
+          let request_body = Body.Reader.create Bigstringaf.empty in
+          handler request request_body;
+          body ~encoding request_body *> ok
     in
     create parser
 
@@ -257,48 +251,47 @@ module Reader = struct
       response <* commit >>= fun response ->
       let proxy = false in
       match Response.body_length ~request_method response with
-      | `Error `Bad_gateway           -> assert (not proxy); assert false
-      | `Error `Internal_server_error -> return (Error (`Invalid_response_body_length response))
+      | `Error `Bad_gateway ->
+          assert (not proxy);
+          assert false
+      | `Error `Internal_server_error ->
+          return (Error (`Invalid_response_body_length response))
       | `Fixed 0L ->
-        handler response Body.Reader.empty;
-        ok
-      | `Fixed _ | `Chunked | `Close_delimited as encoding ->
-        (* We do not trust the length provided in the [`Fixed] case, as the
-           client could DOS easily. *)
-        let response_body = Body.Reader.create Bigstringaf.empty in
-        handler response response_body;
-        body ~encoding response_body *> ok
+          handler response Body.Reader.empty;
+          ok
+      | (`Fixed _ | `Chunked | `Close_delimited) as encoding ->
+          (* We do not trust the length provided in the [`Fixed] case, as the
+             client could DOS easily. *)
+          let response_body = Body.Reader.create Bigstringaf.empty in
+          handler response response_body;
+          body ~encoding response_body *> ok
     in
     create parser
-  ;;
 
-
-  let is_closed t =
-    t.closed
+  let is_closed t = t.closed
 
   let transition t state =
     match state with
-    | AU.Done(consumed, Ok ()) ->
-      t.parse_state <- Done;
-      consumed
-    | AU.Done(consumed, Error error) ->
-      t.parse_state <- Fail error;
-      consumed
-    | AU.Fail(consumed, marks, msg) ->
-      t.parse_state <- Fail (`Parse(marks, msg));
-      consumed
+    | AU.Done (consumed, Ok ()) ->
+        t.parse_state <- Done;
+        consumed
+    | AU.Done (consumed, Error error) ->
+        t.parse_state <- Fail error;
+        consumed
+    | AU.Fail (consumed, marks, msg) ->
+        t.parse_state <- Fail (`Parse (marks, msg));
+        consumed
     | AU.Partial { committed; continue } ->
-      t.parse_state <- Partial continue;
-      committed
+        t.parse_state <- Partial continue;
+        committed
+
   and start t state =
-      match state with
-      | AU.Done _         -> failwith "httpaf.Parse.unable to start parser"
-      | AU.Fail(0, marks, msg) ->
-        t.parse_state <- Fail (`Parse(marks, msg))
-      | AU.Partial { committed = 0; continue } ->
+    match state with
+    | AU.Done _ -> failwith "H1.Parse.unable to start parser"
+    | AU.Fail (0, marks, msg) -> t.parse_state <- Fail (`Parse (marks, msg))
+    | AU.Partial { committed = 0; continue } ->
         t.parse_state <- Partial continue
-      | _ -> assert false
-  ;;
+    | _ -> assert false
 
   let rec read_with_more t bs ~off ~len more =
     let consumed =
@@ -306,29 +299,20 @@ module Reader = struct
       | Fail _ -> 0
       (* Don't feed empty input when we're at a request boundary *)
       | Done when len = 0 -> 0
-      | Done   ->
-        start t (AU.parse t.parser);
-        read_with_more  t bs ~off ~len more;
-      | Partial continue ->
-        transition t (continue bs more ~off ~len)
+      | Done ->
+          start t (AU.parse t.parser);
+          read_with_more t bs ~off ~len more
+      | Partial continue -> transition t (continue bs more ~off ~len)
     in
-    begin match more with
-    | Complete when consumed = len -> t.closed <- true;
-    | Complete | Incomplete -> ()
-    end;
-    consumed;
-  ;;
+    (match more with
+    | Complete when consumed = len -> t.closed <- true
+    | Complete | Incomplete -> ());
+    consumed
 
-  let force_close t =
-    t.closed <- true;
-  ;;
+  let force_close t = t.closed <- true
 
   let next t =
     match t.parse_state with
-    | Fail err  -> `Error err
-    | Done | Partial _ ->
-      if t.closed
-      then `Close
-      else `Read
-  ;;
+    | Fail err -> `Error err
+    | Done | Partial _ -> if t.closed then `Close else `Read
 end

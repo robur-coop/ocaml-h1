@@ -69,7 +69,7 @@ module Oneshot = struct
         match Request.body_length request with
         | `Fixed _ | `Chunked as encoding -> encoding
         | `Error `Bad_request ->
-          failwith "Httpaf.Client_connection.request: invalid body length"
+          failwith "H1.Client_connection.request: invalid body length"
       in
       Body.Writer.create (Bigstringaf.create config.request_body_buffer_size)
         ~encoding ~when_ready_to_write:(fun () -> Writer.wakeup writer)

@@ -28,11 +28,11 @@ jobs:
 
       - name: Deps
         run: |
-          opam pin add -n httpaf .
-          opam install --deps-only httpaf
+          opam pin add -n h1 .
+          opam install --deps-only h1
 
       - name: Build
-        run: opam exec -- dune build -p httpaf
+        run: opam exec -- dune build -p h1
 
   tests:
     name: Tests
@@ -46,6 +46,8 @@ jobs:
           - 4.10.2
           - 4.11.2
           - 4.12.0
+          - 4.13.0
+          - 4.14.1
 
     runs-on: ${{ matrix.os }}
 
@@ -60,9 +62,8 @@ jobs:
 
       - name: Deps
         run: |
-          opam pin add -n httpaf .
-          opam pin add -n httpaf-async .
-          opam pin add -n httpaf-lwt-unix .
+          opam pin add -n h1 .
+          opam pin add -n h1-lwt-unix .
           opam install -t --deps-only .
 
       - name: Build
@@ -70,7 +71,3 @@ jobs:
 
       - name: Test
         run: opam exec -- dune runtest
-
-      - name: Examples
-        run: |
-          opam exec -- make examples

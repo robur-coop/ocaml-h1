@@ -12,7 +12,7 @@ module Config = Config
 module Server_connection = Server_connection
 module Client_connection = Client_connection.Oneshot
 
-module Httpaf_private = struct
+module H1_private = struct
   module Parse = Parse
   module Serialize = Serialize
 end
