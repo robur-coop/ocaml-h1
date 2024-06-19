@@ -2,10 +2,10 @@ open Base
 open Lwt.Infix
 module Arg = Stdlib.Arg
 
-open Httpaf_lwt_unix
+open H1_lwt_unix
 
-let request_handler (_ : Unix.sockaddr) = Httpaf_examples.Server.upgrade
-let error_handler (_ : Unix.sockaddr) = Httpaf_examples.Server.error_handler
+let request_handler (_ : Unix.sockaddr) = H1_examples.Server.upgrade
+let error_handler (_ : Unix.sockaddr) = H1_examples.Server.error_handler
 
 let upgrade_handler (_ : Unix.sockaddr) (fd : Lwt_unix.file_descr) =
   let input = Lwt_io.of_fd fd ~mode:Input in
