@@ -37,16 +37,25 @@ type error =
 module Response_state = struct
   type t =
     | Waiting
-    | Fixed of Response.t
+    | Upgrade   of Response.t
+    | Fixed     of Response.t
     | Streaming of Response.t * Body.Writer.t
 end
 
 module Input_state = struct
-  type t = Ready | Complete
+  type t =
+    | Waiting
+    | Ready
+    | Complete
+    | Upgraded
 end
 
 module Output_state = struct
-  type t = Waiting | Ready | Complete
+  type t =
+    | Waiting
+    | Ready
+    | Complete
+    | Upgraded
 end
 
 type error_handler =
@@ -106,12 +115,16 @@ let request_body { request_body; _ } = request_body
 let response { response_state; _ } =
   match response_state with
   | Waiting -> None
-  | Streaming (response, _) | Fixed response -> Some response
+  | Streaming (response, _)
+  | Upgrade response
+  | Fixed response -> Some response
 
 let response_exn { response_state; _ } =
   match response_state with
   | Waiting -> failwith "H1.Reqd.response_exn: response has not started"
-  | Streaming (response, _) | Fixed response -> response
+  | Streaming (response, _)
+  | Upgrade response
+  | Fixed response -> response
 
 let respond_with_string t response str =
   if t.error_code <> `Ok then
@@ -127,8 +140,10 @@ let respond_with_string t response str =
       t.response_state <- Fixed response;
       Writer.wakeup t.writer
   | Streaming _ ->
-      failwith "H1.Reqd.respond_with_string: response already started"
-  | Fixed _ -> failwith "H1.Reqd.respond_with_string: response already complete"
+    failwith "H1.Reqd.respond_with_string: response already started"
+  | Upgrade _
+  | Fixed _ ->
+    failwith "H1.Reqd.respond_with_string: response already complete"
 
 let respond_with_bigstring t response (bstr : Bigstringaf.t) =
   if t.error_code <> `Ok then
@@ -144,7 +159,8 @@ let respond_with_bigstring t response (bstr : Bigstringaf.t) =
       t.response_state <- Fixed response;
       Writer.wakeup t.writer
   | Streaming _ ->
-      failwith "H1.Reqd.respond_with_bigstring: response already started"
+    failwith "H1.Reqd.respond_with_bigstring: response already started"
+  | Upgrade _
   | Fixed _ ->
       failwith "H1.Reqd.respond_with_bigstring: response already complete"
 
@@ -169,7 +185,8 @@ let unsafe_respond_with_streaming ~flush_headers_immediately t response =
       if flush_headers_immediately then Writer.wakeup t.writer;
       response_body
   | Streaming _ ->
-      failwith "H1.Reqd.respond_with_streaming: response already started"
+    failwith "H1.Reqd.respond_with_streaming: response already started"
+  | Upgrade _
   | Fixed _ ->
       failwith "H1.Reqd.respond_with_streaming: response already complete"
 
@@ -178,6 +195,25 @@ let respond_with_streaming ?(flush_headers_immediately = false) t response =
     failwith
       "H1.Reqd.respond_with_streaming: invalid state, currently handling error";
   unsafe_respond_with_streaming ~flush_headers_immediately t response
+
+let respond_with_upgrade ?reason t headers =
+  match t.response_state with
+  | Waiting ->
+    if not (Request.is_upgrade t.request) then
+      failwith "httpaf.Reqd.respond_with_upgrade: request was not an upgrade request"
+    else (
+      let response = Response.create ?reason ~headers `Switching_protocols in
+      t.response_state <- Upgrade response;
+      (* The parser ensures it only passes empty bodies in the case of an
+         upgrade request *)
+      assert (Body.Reader.is_closed t.request_body);
+      Writer.write_response t.writer response;
+      Writer.wakeup t.writer);
+  | Streaming _ ->
+    failwith "H1.Reqd.respond_with_upgrade: response already started"
+  | Upgrade _
+  | Fixed _ ->
+    failwith "H1.Reqd.respond_with_upgrade: response already complete"
 
 let report_error t error =
   t.persistent <- false;
@@ -200,12 +236,12 @@ let report_error t error =
       failwith "H1.Reqd.report_exn: NYI"
   | Streaming (_response, response_body), `Ok -> Body.Writer.close response_body
   | Streaming (_response, response_body), `Exn _ ->
-      Body.Writer.close response_body;
-      Writer.close_and_drain t.writer
-  | (Fixed _ | Streaming _ | Waiting), _ ->
-      (* XXX(seliopou): Once additional logging support is added, log the error
-       * in case it is not spurious. *)
-      ()
+    Body.Writer.close response_body;
+    Writer.close_and_drain t.writer
+  | (Fixed _ | Streaming _ | Waiting | Upgrade _) , _ ->
+    (* XXX(seliopou): Once additional logging support is added, log the error
+     * in case it is not spurious. *)
+    ()
 
 let report_exn t exn = report_error t (`Exn exn)
 
@@ -227,10 +263,18 @@ let error_code t =
 let persistent_connection t = t.persistent
 
 let input_state t : Input_state.t =
-  if Body.Reader.is_closed t.request_body then Complete else Ready
+  match t.response_state with
+  | Upgrade _ -> Upgraded
+  | Waiting when Request.is_upgrade t.request -> Waiting
+  | Waiting | Fixed _ | Streaming _ ->
+    if Body.Reader.is_closed t.request_body
+    then Complete
+    else Ready
+;;
 
 let output_state t : Output_state.t =
   match t.response_state with
+  | Upgrade _ -> Upgraded
   | Fixed _ -> Complete
   | Streaming (_, response_body) ->
       if Body.Writer.has_pending_output response_body then Ready
