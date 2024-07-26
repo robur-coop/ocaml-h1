@@ -1,11 +1,7 @@
-module Headers = Headers
 module IOVec = IOVec
-module Method = Method
 module Reqd = Reqd
 module Request = Request
 module Response = Response
-module Status = Status
-module Version = Version
 module Body = Body
 module Config = Config
 
