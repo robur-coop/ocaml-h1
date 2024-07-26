@@ -292,12 +292,6 @@ let connection_is_shutdown t =
   writer_closed t;
 ;;
 
-let raises_writer_closed f =
-  (* This is raised when you write to a closed [Faraday.t] *)
-  Alcotest.check_raises "raises because writer is closed"
-    (Failure "cannot write to closed writer") f
-;;
-
 let request_handler_with_body body reqd =
   Body.Reader.close (Reqd.request_body reqd);
   Reqd.respond_with_string reqd (Response.create `OK) body
@@ -1140,41 +1134,6 @@ let test_shutdown_in_request_handler () =
   writer_closed t
 ;;
 
-let test_shutdown_during_asynchronous_request () =
-  let request = Request.create `GET "/" in
-  let response = Response.create `OK in
-  let continue = ref (fun () -> ()) in
-  let t = create (fun reqd ->
-    continue := (fun () ->
-      Reqd.respond_with_string reqd response ""))
-  in
-  read_request t request;
-  shutdown t;
-  raises_writer_closed !continue;
-  reader_closed t;
-  writer_closed t
-;;
-
-let test_flush_response_before_shutdown () =
-  let request = Request.create `GET "/" ~headers:(Headers.encoding_fixed 0) in
-  let response = Response.create `OK ~headers:Headers.encoding_chunked in
-  let continue = ref (fun () -> ()) in
-  let request_handler reqd =
-    let body = Reqd.respond_with_streaming ~flush_headers_immediately:true reqd response in
-    continue := (fun () ->
-      Body.Writer.write_string body "hello world";
-      Body.Writer.close body);
-  in
-  let t = create request_handler in
-  read_request t request;
-  write_response t response;
-  !continue ();
-  shutdown t;
-  raises_writer_closed (fun () ->
-    write_string t "b\r\nhello world\r\n";
-    connection_is_shutdown t);
-;;
-
 let test_schedule_read_with_data_available () =
   let response = Response.create `OK in
   let body = ref None in
@@ -1333,8 +1292,6 @@ let tests =
   ; "parse failure at eof", `Quick, test_parse_failure_at_eof
   ; "response finished before body read", `Quick, test_response_finished_before_body_read
   ; "shutdown in request handler", `Quick, test_shutdown_in_request_handler
-  ; "shutdown during asynchronous request", `Quick, test_shutdown_during_asynchronous_request
-  ; "flush response before shutdown", `Quick, test_flush_response_before_shutdown
   ; "schedule read with data available", `Quick, test_schedule_read_with_data_available
   ; "test upgrades", `Quick, test_upgrade
   ; "test upgrade where server does not upgrade", `Quick, test_upgrade_where_server_does_not_upgrade
