@@ -1,3 +1,3 @@
 (lang dune 2.0)
 
-(name httpaf)
+(name h1)
