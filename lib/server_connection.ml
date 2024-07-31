@@ -177,8 +177,9 @@ let set_error_and_handle ?request t error =
                 "H1.Server_connection.error_handler: invalid response body \
                  length"
         in
-        Body.Writer.of_faraday (Writer.faraday writer) ~encoding
-          ~when_ready_to_write:(fun () -> Writer.wakeup writer)))
+        Body.Writer.of_faraday (Writer.faraday writer) writer ~encoding
+    )
+  )
 
 let report_exn t exn = set_error_and_handle t (`Exn exn)
 

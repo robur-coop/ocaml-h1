@@ -292,12 +292,6 @@ let connection_is_shutdown t =
   writer_closed t;
 ;;
 
-let raises_writer_closed f =
-  (* This is raised when you write to a closed [Faraday.t] *)
-  Alcotest.check_raises "raises because writer is closed"
-    (Failure "cannot write to closed writer") f
-;;
-
 let request_handler_with_body body reqd =
   Body.Reader.close (Reqd.request_body reqd);
   Reqd.respond_with_string reqd (Response.create `OK) body
@@ -312,7 +306,7 @@ let echo_handler response reqd =
   let response_body = Reqd.respond_with_streaming reqd response in
   let rec on_read buffer ~off ~len =
     Body.Writer.write_string response_body (Bigstringaf.substring ~off ~len buffer);
-    Body.Writer.flush response_body (fun () ->
+    Body.Writer.flush response_body (fun _ ->
       Body.Reader.schedule_read request_body ~on_eof ~on_read)
   and on_eof () =
     print_endline "echo handler eof";
@@ -332,7 +326,9 @@ let streaming_handler ?(flush=false) response writes reqd =
     | w :: ws ->
       Body.Writer.write_string body w;
       writes := ws;
-      Body.Writer.flush body write
+      Body.Writer.flush_with_reason body (function
+        | `Closed -> ()
+        | `Written -> write ())
   in
   write ();
 ;;
@@ -772,9 +768,11 @@ let test_chunked_encoding () =
     let response = Response.create `OK ~headers:Headers.encoding_chunked in
     let resp_body = Reqd.respond_with_streaming reqd response in
     Body.Writer.write_string resp_body "First chunk";
-    Body.Writer.flush resp_body (fun () ->
-      Body.Writer.write_string resp_body "Second chunk";
-      Body.Writer.close resp_body);
+    Body.Writer.flush_with_reason resp_body (function
+      | `Closed -> assert false
+      | `Written ->
+        Body.Writer.write_string resp_body "Second chunk";
+        Body.Writer.close resp_body);
   in
   let t = create ~error_handler request_handler in
   writer_yielded t;
@@ -801,9 +799,11 @@ let test_chunked_encoding_for_error () =
       `Bad_request error;
     let body = start_response Headers.encoding_chunked in
     Body.Writer.write_string body "Bad";
-    Body.Writer.flush body (fun () ->
-      Body.Writer.write_string body " request";
-      Body.Writer.close body);
+    Body.Writer.flush_with_reason body (function
+      | `Closed -> assert false
+      | `Written ->
+        Body.Writer.write_string body " request";
+        Body.Writer.close body);
   in
   let t = create ~error_handler (fun _ -> assert false) in
   let c = feed_string t "  X\r\n\r\n" in
@@ -836,6 +836,53 @@ let test_blocked_write_on_chunked_encoding () =
     write_partial_string t ~msg:"first write" response_bytes 16
   in
   write_string t ~msg:"second write" second_write
+;;
+
+let test_body_writing_when_socket_closes () =
+  let response = Response.create `OK ~headers:Headers.encoding_chunked in
+  let body_ref = ref None in
+  let request_handler reqd =
+    let body = Reqd.respond_with_streaming reqd response in
+    body_ref := Some body
+  in
+  let t = create request_handler in
+  writer_yielded t;
+  read_request t (Request.create `GET "/");
+
+  let flush_result_testable =
+    Alcotest.of_pp
+      (Fmt.using (function `Closed -> "Closed" | `Written -> "Written") Fmt.string)
+  in
+
+  let body = Option.get !body_ref in
+  let check_flush ~expect service_writer =
+    let flush_result = ref None in
+    Body.Writer.flush_with_reason body (fun r -> flush_result := Some r);
+    service_writer ();
+    Alcotest.(check' (option flush_result_testable))
+      ~msg:"flush_result is as expected"
+      ~expected:(Some expect)
+      ~actual:!flush_result;
+  in
+
+  Body.Writer.write_string body "First chunk";
+  check_flush (fun () ->
+    write_response t
+      ~msg:"First chunk written"
+      ~body:"b\r\nFirst chunk\r\n"
+      response)
+    ~expect:`Written;
+
+  Body.Writer.write_string body "Second chunk";
+  check_flush (fun () -> write_eof t) ~expect:`Closed;
+
+  (* Writing after the writer is closed does not raise, but flushes get immediately
+     resolved with `Closed. *)
+  Body.Writer.write_string body "Chunk after closed";
+  check_flush (fun () -> ()) ~expect:`Closed;
+
+  Body.Writer.close body;
+  check_flush (fun () -> ()) ~expect:`Closed;
 ;;
 
 let test_unexpected_eof () =
@@ -1087,41 +1134,6 @@ let test_shutdown_in_request_handler () =
   writer_closed t
 ;;
 
-let test_shutdown_during_asynchronous_request () =
-  let request = Request.create `GET "/" in
-  let response = Response.create `OK in
-  let continue = ref (fun () -> ()) in
-  let t = create (fun reqd ->
-    continue := (fun () ->
-      Reqd.respond_with_string reqd response ""))
-  in
-  read_request t request;
-  shutdown t;
-  raises_writer_closed !continue;
-  reader_closed t;
-  writer_closed t
-;;
-
-let test_flush_response_before_shutdown () =
-  let request = Request.create `GET "/" ~headers:(Headers.encoding_fixed 0) in
-  let response = Response.create `OK ~headers:Headers.encoding_chunked in
-  let continue = ref (fun () -> ()) in
-  let request_handler reqd =
-    let body = Reqd.respond_with_streaming ~flush_headers_immediately:true reqd response in
-    continue := (fun () ->
-      Body.Writer.write_string body "hello world";
-      Body.Writer.close body);
-  in
-  let t = create request_handler in
-  read_request t request;
-  write_response t response;
-  !continue ();
-  shutdown t;
-  raises_writer_closed (fun () ->
-    write_string t "b\r\nhello world\r\n";
-    connection_is_shutdown t);
-;;
-
 let test_schedule_read_with_data_available () =
   let response = Response.create `OK in
   let body = ref None in
@@ -1267,6 +1279,7 @@ let tests =
   ; "chunked encoding", `Quick, test_chunked_encoding
   ; "chunked encoding for error", `Quick, test_chunked_encoding_for_error
   ; "blocked write on chunked encoding", `Quick, test_blocked_write_on_chunked_encoding
+  ; "body writing when socket closes", `Quick, test_body_writing_when_socket_closes
   ; "writer unexpected eof", `Quick, test_unexpected_eof
   ; "input shrunk", `Quick, test_input_shrunk
   ; "failed request parse", `Quick, test_failed_request_parse
@@ -1279,8 +1292,6 @@ let tests =
   ; "parse failure at eof", `Quick, test_parse_failure_at_eof
   ; "response finished before body read", `Quick, test_response_finished_before_body_read
   ; "shutdown in request handler", `Quick, test_shutdown_in_request_handler
-  ; "shutdown during asynchronous request", `Quick, test_shutdown_during_asynchronous_request
-  ; "flush response before shutdown", `Quick, test_flush_response_before_shutdown
   ; "schedule read with data available", `Quick, test_schedule_read_with_data_available
   ; "test upgrades", `Quick, test_upgrade
   ; "test upgrade where server does not upgrade", `Quick, test_upgrade_where_server_does_not_upgrade
