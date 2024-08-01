@@ -31,8 +31,6 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
-open Httpun_types
-
 (** Http/af is a high-performance, memory-efficient, and scalable web server
     for OCaml. It implements the HTTP 1.1 specification with respect to
     parsing, serialization, and connection pipelining. For compatibility,
@@ -45,7 +43,6 @@ open Httpun_types
 
 (** {2 Basic HTTP Types} *)
 
-module IOVec : module type of Httpun_types.IOVec
 module Version : module type of Httpun_types.Version
 module Method : module type of Httpun_types.Method
 module Status : module type of Httpun_types.Status
@@ -237,20 +234,7 @@ end
 
 
 (** IOVec *)
-module IOVec : sig
-  type 'a t = 'a Faraday.iovec =
-    { buffer : 'a
-    ; off : int
-    ; len : int }
-
-  val length  : _ t -> int
-  val lengthv : _ t list -> int
-
-  val shift  : 'a t -> int -> 'a t
-  val shiftv : 'a t list -> int -> 'a t list
-
-  val pp_hum : Format.formatter -> _ t -> unit [@@ocaml.toplevel_printer]
-end
+module IOVec : module type of Httpun_types.IOVec
 
 (** {2 Request Descriptor} *)
 module Reqd : sig
