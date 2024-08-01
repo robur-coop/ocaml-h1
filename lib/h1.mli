@@ -43,6 +43,14 @@ open Httpun_types
     1.1 specification, and the basic principles of memory management and
     vectorized IO. *)
 
+(** {2 Basic HTTP Types} *)
+
+module IOVec : module type of Httpun_types.IOVec
+module Version : module type of Httpun_types.Version
+module Method : module type of Httpun_types.Method
+module Status : module type of Httpun_types.Status
+module Headers : module type of Httpun_types.Headers
+
 (** {2 Message Body} *)
 
 module Body : sig
