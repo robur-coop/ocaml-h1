@@ -76,7 +76,7 @@ module Reader = struct
       t.read_scheduled <- false;
       t.on_eof         <- default_on_eof;
       t.on_read        <- default_on_read;
-      let { IOVec.buffer; off; len } = iovec in
+      let { Httpun_types.IOVec.buffer; off; len } = iovec in
       Faraday.shift t.faraday len;
       on_read buffer ~off ~len;
       execute_read t
@@ -181,10 +181,10 @@ module Writer = struct
       Serialize.Writer.unyield writer;
     | `Writev iovecs ->
       let buffered = t.buffered_bytes in
-      begin match IOVec.shiftv iovecs !buffered with
+      begin match Httpun_types.IOVec.shiftv iovecs !buffered with
       | []     -> ()
       | iovecs ->
-        let lengthv  = IOVec.lengthv iovecs in
+        let lengthv  = Httpun_types.IOVec.lengthv iovecs in
         buffered := !buffered + lengthv;
         begin match t.encoding with
         | Identity  -> Serialize.Writer.schedule_fixed writer iovecs

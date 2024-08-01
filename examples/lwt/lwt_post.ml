@@ -18,7 +18,7 @@ let main port host =
     H1_examples.Client.print ~on_eof:(Lwt.wakeup_later notify_finished)
   in
   let headers =
-    Headers.of_list
+    Httpun_types.Headers.of_list
     [ "content-length"   , (Int.to_string (String.length body))
     ; "connection"       , "close"
     ; "host"             , host

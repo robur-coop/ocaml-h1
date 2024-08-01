@@ -15,7 +15,7 @@ let main port host =
   let response_handler =
     H1_examples.Client.print ~on_eof:(Lwt.wakeup_later notify_finished)
   in
-  let headers = Headers.of_list [ "host", host ] in
+  let headers = Httpun_types.Headers.of_list [ "host", host ] in
   let request_body =
     Client.request
       ~error_handler:H1_examples.Client.error_handler

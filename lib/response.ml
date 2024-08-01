@@ -31,6 +31,8 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
+open Httpun_types
+
 type t =
   { version : Version.t
   ; status  : Status.t

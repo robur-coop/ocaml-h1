@@ -31,6 +31,8 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
+open Httpun_types
+
 module Queue = struct
   include Queue
 

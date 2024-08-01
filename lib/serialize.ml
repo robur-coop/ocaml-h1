@@ -32,6 +32,7 @@
   ----------------------------------------------------------------------------*)
 
 open Faraday
+open Httpun_types
 
 let write_space t   = write_char t ' '
 let write_crlf  t   = write_string t "\r\n"

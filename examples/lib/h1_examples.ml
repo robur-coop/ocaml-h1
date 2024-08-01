@@ -1,5 +1,6 @@
 open Base
 open H1
+open Httpun_types
 module Format = Stdlib.Format
 
 let print_string = Stdio.(Out_channel.output_string stdout)

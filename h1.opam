@@ -18,6 +18,7 @@ depends: [
   "bigstringaf" {>= "0.4.0"}
   "angstrom" {>= "0.14.0"}
   "faraday"  {>= "0.6.1"}
+  "httpun-types" {>= "0.1.0"}
 ]
 synopsis:
   "A high-performance, memory-efficient, and scalable web server for OCaml"
