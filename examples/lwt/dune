@@ -1,7 +1,7 @@
 (executables
  (libraries h1 h1-lwt-unix h1_examples base stdio lwt lwt.unix)
  (optional true)
- (names lwt_get lwt_post lwt_echo_post lwt_echo_upgrade))
+ (names lwt_get lwt_post lwt_echo_post lwt_echo_upgrade lwt_chunked))
 
 (alias
  (name runtest)

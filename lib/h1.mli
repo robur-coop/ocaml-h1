@@ -494,14 +494,19 @@ module Body : sig
         modified until a subsequent call to {!flush} has successfully
         completed. *)
 
-    val flush : t -> (unit -> unit) -> unit
-    (** [flush t f] makes all bytes in [t] available for writing to the awaiting
-        output channel. Once those bytes have reached that output channel, [f]
-        will be called.
+    val flush_with_reason : t -> ([ `Written | `Closed ] -> unit) -> unit
+    (** [flush_with_reason t f] makes all bytes in [t] available for writing to the awaiting output
+        channel. Once those bytes have reached that output channel, [f `Written] will be
+        called. If instead, the output channel is closed before all of those bytes are
+        successfully written, [f `Closed] will be called.
 
         The type of the output channel is runtime-dependent, as are guarantees
         about whether those packets have been queued for delivery or have
         actually been received by the intended recipient. *)
+
+    val flush: t -> (unit -> unit) -> unit
+    (** [flush t f] is identical to [flush_with_reason t], except ignoring the result of the flush.
+        In most situations, you should use flush_with_reason and properly handle a closed output channel. *)
 
     val close : t -> unit
     (** [close t] closes [t], causing subsequent write calls to raise. If
@@ -509,8 +514,9 @@ module Body : sig
         to the output channel. *)
 
     val is_closed : t -> bool
-    (** [is_closed t] is [true] if {!close} has been called on [t] and [false]
-        otherwise. A closed [t] may still have pending output. *)
+    (** [is_closed t] is [true] if {!close} has been called on [t], or if the attached
+        output channel is closed (e.g. because [report_write_result `Closed] has been
+        called). A closed [t] may still have pending output. *)
   end
 
 end
