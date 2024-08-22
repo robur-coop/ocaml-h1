@@ -36,6 +36,8 @@
    responses, which are collectively referred to in the HTTP 1.1 specifications
    as 'messages'. *)
 
+open Httpun_types
+
 let persistent_connection ?(proxy=false) version headers =
   let _ = proxy in
   (* XXX(seliopou): use proxy argument in the case of HTTP/1.0 as per

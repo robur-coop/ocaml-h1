@@ -2,5 +2,5 @@
  (name        h1)
  (public_name h1)
  (libraries
-   angstrom faraday bigstringaf)
+   angstrom faraday bigstringaf httpun-types)
  (flags (:standard -safe-string)))

@@ -1,11 +1,11 @@
-module Headers = Headers
-module IOVec = IOVec
-module Method = Method
+module Headers = Httpun_types.Headers
+module IOVec = Httpun_types.IOVec
+module Method = Httpun_types.Method
+module Status = Httpun_types.Status
+module Version = Httpun_types.Version
 module Reqd = Reqd
 module Request = Request
 module Response = Response
-module Status = Status
-module Version = Version
 module Body = Body
 module Config = Config
 
