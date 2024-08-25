@@ -13,12 +13,13 @@ build: [
 depends: [
   "ocaml" {>= "4.08.0"}
   "dune" {>= "2.0.0"}
-  "alcotest" {with-test}
+  "alcotest" {with-test & >= "1.2.0"}
   "stdio" {with-test}
   "bigstringaf" {>= "0.4.0"}
   "angstrom" {>= "0.14.0"}
   "faraday"  {>= "0.6.1"}
   "httpun-types" {>= "0.1.0"}
+  "lwt" {with-test}
 ]
 synopsis:
   "A high-performance, memory-efficient, and scalable web server for OCaml"
