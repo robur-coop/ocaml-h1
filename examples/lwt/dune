@@ -5,4 +5,5 @@
 
 (alias
  (name runtest)
+ (package h1-lwt-unix)
  (deps (glob_files *.exe)))
