@@ -592,6 +592,12 @@ module Websocket : sig
     val when_ready_to_write : t -> (unit -> unit) -> unit
   end
 
+  module Handshake : sig
+    val get_nonce : Request.t -> string option
+
+    val server_headers : sha1:(string -> string) -> nonce:string -> Headers.t
+  end
+
   module Client_connection : sig
     type t
 

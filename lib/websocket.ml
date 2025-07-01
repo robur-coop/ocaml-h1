@@ -467,20 +467,36 @@ module Connection = struct
   let report_write_result t result = Wsd.report_result t.wsd result
 end
 
+module Handshake = struct
+  let compute_accept ~sha1 nonce = sha1 (nonce ^ "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+
+  let get_nonce request = Headers.get request.Request.headers "sec-websocket-key"
+
+  let server_headers ~sha1 ~nonce =
+    Headers.of_list
+      [ ("connection", "upgrade"); ("upgrade", "websocket")
+      ; ("sec-websocket-accept", compute_accept ~sha1 nonce ) ]
+
+  let is_valid_accept_headers ~sha1 ~nonce headers =
+    let sec_websocket_accept = Headers.get headers "sec-websocket-accept" in
+    let upgrade = Headers.get headers "upgrade" |> Option.map String.lowercase_ascii in
+    let connection = Headers.get headers "connection" |> Option.map String.lowercase_ascii in
+    (sec_websocket_accept = Some (compute_accept ~sha1 nonce))
+    && (upgrade = Some "websocket")
+    && (connection = Some "upgrade")
+end
+
 module Client_handshake = struct
   type t = { connection : H1_client_connection.t; body : Body.Writer.t }
 
   (* assumes [nonce] is base64 encoded *)
   let create ~nonce ~host ~port ~resource ~error_handler ~response_handler =
-    let headers =
-      [
-        ("upgrade", "websocket");
+    let headers = Headers.of_list
+      [ ("upgrade", "websocket");
         ("connection", "upgrade");
         ("host", String.concat ":" [ host; string_of_int port ]);
         ("sec-websocket-version", "13");
-        ("sec-websocket-key", nonce);
-      ]
-      |> Headers.of_list
+        ("sec-websocket-key", nonce); ]
     in
     let body, connection =
        H1_client_connection.request
@@ -502,6 +518,7 @@ module Client_handshake = struct
 
   let yield_writer t = H1_client_connection.yield_writer t.connection
   let close t = Body.Writer.close t.body
+
 end
 
 module Client_connection = struct
@@ -516,19 +533,6 @@ module Client_connection = struct
     [ H1_client_connection.error
     | `Handshake_failure of Response.t * Body.Reader.t ]
 
-  let passes_scrutiny ~accept headers =
-    let upgrade = Headers.get headers "upgrade" in
-    let connection = Headers.get headers "connection" in
-    let sec_websocket_accept = Headers.get headers "sec-websocket-accept" in
-    sec_websocket_accept = Some accept
-    && (match upgrade with
-       | None -> false
-       | Some upgrade -> String.lowercase_ascii upgrade = "websocket")
-    &&
-    match connection with
-    | None -> false
-    | Some connection -> String.lowercase_ascii connection = "upgrade"
-
   let handshake_exn t =
     match !t with
     | Handshake handshake -> handshake
@@ -539,9 +543,8 @@ module Client_connection = struct
     let t = ref Uninitialized in
     let nonce = Base64.encode_exn nonce in
     let response_handler response response_body =
-      let accept = sha1 (nonce ^ "258EAFA5-E914-47DA-95CA-C5AB0DC85B11") in
       match response.Response.status with
-      | `Switching_protocols when passes_scrutiny ~accept response.headers ->
+      | `Switching_protocols when Handshake.is_valid_accept_headers ~sha1 ~nonce response.headers ->
           Body.Reader.close response_body;
           let handshake = handshake_exn t in
           t :=
