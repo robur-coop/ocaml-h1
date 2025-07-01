@@ -470,6 +470,7 @@ end
 module Client_handshake = struct
   type t = { connection : H1_client_connection.t; body : Body.Writer.t }
 
+  (* assumes [nonce] is base64 encoded *)
   let create ~nonce ~host ~port ~resource ~error_handler ~response_handler =
     let headers =
       [
