@@ -1,6 +1,6 @@
-# http/af
+# ocaml-h1
 
-http/af is a high-performance, memory-efficient, and scalable web server for
+`ocaml-h1` is a high-performance, memory-efficient, and scalable web server for
 OCaml. It implements the HTTP 1.1 specification with respect to parsing,
 serialization, and connection pipelining as a state machine that is agnostic to
 the underlying IO mechanism, and is therefore portable across many platform.
@@ -9,7 +9,6 @@ the parsing and serialization layers of the HTTP standard, hence the name.
 
 [angstrom]: https://github.com/inhabitedtype/angstrom
 [faraday]: https://github.com/inhabitedtype/faraday
-[![Build Status](https://github.com/robur-coop/ocaml-h1/workflows/build/badge.svg)](https://github.com/robur-coop/ocaml-h1/actions?query=workflow%3A%22build%22)]
 
 ## Installation
 
@@ -115,6 +114,24 @@ Tests can be run via dune:
 dune runtest
 ```
 
+## `ocaml-h1` & `httpaf`
+
+`ocaml-h1` is a _hard_ fork of [httpaf][httpaf]. It was created after asking
+the author and official maintainer of httpaf if we could make such a fork.
+
+`ocaml-h1` is **not** intended to be a continuation of `httpaf`, which
+continues to evolve and exist. However, some pull requests were/are awaiting
+integration, and we wanted them to be included.
+
+After discussing it with the author, he gave us permission to make this fork,
+which includes all the PRs we wanted as well as additions such as the
+implementation of websockets.
+
+We would therefore like to thank the original author of `httpaf` for his work,
+for his trust in our cooperative, and for his permission to fork `httpaf`.
+
 ## License
 
 BSD3, see LICENSE files for its text.
+
+[httpaf]: https://github.com/inhabitedtype/httpaf
