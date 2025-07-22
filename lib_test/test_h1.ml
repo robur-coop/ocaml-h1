@@ -1,6 +1,7 @@
 let () =
-  Alcotest.run "httpaf unit tests"
-    [ "version"          , Test_version.tests
+  Alcotest.run "h1 unit tests"
+    [ "websocket"        , Test_websocket.tests
+    ; "version"          , Test_version.tests
     ; "method"           , Test_method.tests
     ; "iovec"            , Test_iovec.tests
     ; "headers"          , Test_headers.tests

@@ -1,4 +1,4 @@
-(executables
+(tests
  (libraries bigstringaf h1 alcotest)
  (modules
    helpers
@@ -10,11 +10,6 @@
    test_request
    test_response
    test_server_connection
-   test_version)
- (names   test_h1))
-
-(rule
- (alias runtest)
- (package h1)
- (deps test_h1.exe)
- (action (run %{deps})))
+   test_version
+   test_websocket)
+ (names test_h1))
