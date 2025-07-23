@@ -92,7 +92,7 @@ type t = {
   request : Request.t;
   request_body : Body.Reader.t;
   writer : Writer.t;
-  response_body_buffer : Bigstringaf.t;
+  response_body_buffer : Bstr.t;
   error_handler : error_handler;
   mutable persistent : bool;
   mutable response_state : Response_state.t;
@@ -147,7 +147,7 @@ let respond_with_string t response str =
   | Fixed _ ->
     failwith "H1.Reqd.respond_with_string: response already complete"
 
-let respond_with_bigstring t response (bstr : Bigstringaf.t) =
+let respond_with_bigstring t response (bstr : Bstr.t) =
   if t.error_code <> `Ok then
     failwith
       "H1.Reqd.respond_with_bigstring: invalid state, currently handling error";

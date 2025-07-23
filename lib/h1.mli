@@ -57,7 +57,7 @@ module Body : sig
     val schedule_read
       :  t
       -> on_eof  : (unit -> unit)
-      -> on_read : (Bigstringaf.t -> off:int -> len:int -> unit)
+      -> on_read : (Bstr.t -> off:int -> len:int -> unit)
       -> unit
     (** [schedule_read t ~on_eof ~on_read] will setup [on_read] and [on_eof] as
         callbacks for when bytes are available in [t] for the application to
@@ -90,12 +90,12 @@ module Body : sig
         possible, this write will be combined with previous and/or subsequent
         writes before transmission. *)
 
-    val write_bigstring : t -> ?off:int -> ?len:int -> Bigstringaf.t -> unit
+    val write_bigstring : t -> ?off:int -> ?len:int -> Bstr.t -> unit
     (** [write_bigstring w ?off ?len bs] copies [bs] into an internal buffer. If
         possible, this write will be combined with previous and/or subsequent
         writes before transmission. *)
 
-    val schedule_bigstring : t -> ?off:int -> ?len:int -> Bigstringaf.t -> unit
+    val schedule_bigstring : t -> ?off:int -> ?len:int -> Bstr.t -> unit
     (** [schedule_bigstring w ?off ?len bs] schedules [bs] to be transmitted at
         the next opportunity without performing a copy. [bs] should not be
         modified until a subsequent call to {!flush} has successfully
@@ -257,7 +257,7 @@ module Reqd : sig
       more details. *)
 
   val respond_with_string    : t -> Response.t -> string -> unit
-  val respond_with_bigstring : t -> Response.t -> Bigstringaf.t -> unit
+  val respond_with_bigstring : t -> Response.t -> Bstr.t -> unit
   val respond_with_streaming : ?flush_headers_immediately:bool -> t -> Response.t -> Body.Writer.t
 
   val respond_with_upgrade : ?reason:string -> t -> Headers.t -> unit
@@ -315,14 +315,14 @@ module Server_connection : sig
   (** [next_read_operation t] returns a value describing the next operation
       that the caller should conduct on behalf of the connection. *)
 
-  val read : t -> Bigstringaf.t -> off:int -> len:int -> int
+  val read : t -> Bstr.t -> off:int -> len:int -> int
   (** [read t bigstring ~off ~len] reads bytes of input from the provided range
       of [bigstring] and returns the number of bytes consumed by the
       connection.  {!read} should be called after {!next_read_operation}
       returns a [`Read] value and additional input is available for the
       connection to consume. *)
 
-  val read_eof : t -> Bigstringaf.t -> off:int -> len:int -> int
+  val read_eof : t -> Bstr.t -> off:int -> len:int -> int
   (** [read_eof t bigstring ~off ~len] reads bytes of input from the provided
       range of [bigstring] and returns the number of bytes consumed by the
       connection.  {!read_eof} should be called after {!next_read_operation}
@@ -336,7 +336,7 @@ module Server_connection : sig
       after {next_read_operation} returns a [`Yield] value. *)
 
   val next_write_operation : t -> [
-    | `Write of Bigstringaf.t IOVec.t list
+    | `Write of Bstr.t IOVec.t list
     | `Yield
     | `Upgrade
     | `Close of int ]
@@ -405,14 +405,14 @@ module Client_connection : sig
   (** [next_read_operation t] returns a value describing the next operation
       that the caller should conduct on behalf of the connection. *)
 
-  val read : t -> Bigstringaf.t -> off:int -> len:int -> int
+  val read : t -> Bstr.t -> off:int -> len:int -> int
   (** [read t bigstring ~off ~len] reads bytes of input from the provided range
       of [bigstring] and returns the number of bytes consumed by the
       connection.  {!read} should be called after {!next_read_operation}
       returns a [`Read] value and additional input is available for the
       connection to consume. *)
 
-  val read_eof : t -> Bigstringaf.t -> off:int -> len:int -> int
+  val read_eof : t -> Bstr.t -> off:int -> len:int -> int
   (** [read_eof t bigstring ~off ~len] reads bytes of input from the provided
       range of [bigstring] and returns the number of bytes consumed by the
       connection.  {!read_eof} should be called after {!next_read_operation}
@@ -421,7 +421,7 @@ module Client_connection : sig
       then shutdown the HTTP parser for the connection. *)
 
   val next_write_operation : t -> [
-    | `Write of Bigstringaf.t IOVec.t list
+    | `Write of Bstr.t IOVec.t list
     | `Yield
     | `Close of int ]
   (** [next_write_operation t] returns a value describing the next operation
@@ -514,8 +514,8 @@ module Websocket : sig
     val unmask_inplace : t -> unit
     val length : t -> int
     val payload_length : t -> int
-    val with_payload : t -> f:(Bigstringaf.t -> off:int -> len:int -> 'a) -> 'a
-    val copy_payload : t -> Bigstringaf.t
+    val with_payload : t -> f:(Bstr.t -> off:int -> len:int -> 'a) -> 'a
+    val copy_payload : t -> Bstr.t
     val copy_payload_bytes : t -> Bytes.t
     val parse : t Angstrom.t
 
@@ -527,7 +527,7 @@ module Websocket : sig
       mask:int32 option ->
       is_fin:bool ->
       opcode:Opcode.t ->
-      payload:Bigstringaf.t ->
+      payload:Bstr.t ->
       off:int ->
       len:int ->
       unit
@@ -554,7 +554,7 @@ module Websocket : sig
   end
 
   type frame_handler =
-    opcode:Opcode.t -> is_fin:bool -> Bigstringaf.t -> off:int -> len:int -> unit
+    opcode:Opcode.t -> is_fin:bool -> Bstr.t -> off:int -> len:int -> unit
 
   type input_handlers = { frame_handler : frame_handler; eof : unit -> unit }
 
@@ -568,7 +568,7 @@ module Websocket : sig
       t ->
       kind:Opcode.standard_non_control ->
       is_fin:bool ->
-      Bigstringaf.t ->
+      Bstr.t ->
       off:int ->
       len:int ->
       unit
@@ -586,7 +586,7 @@ module Websocket : sig
     val send_pong : t -> unit
     val flushed : t -> (unit -> unit) -> unit
     val close : t -> unit
-    val next : t -> [ `Write of Bigstringaf.t IOVec.t list | `Yield | `Close of int ]
+    val next : t -> [ `Write of Bstr.t IOVec.t list | `Yield | `Close of int ]
     val report_result : t -> [ `Ok of int | `Closed ] -> unit
     val is_closed : t -> bool
     val when_ready_to_write : t -> (unit -> unit) -> unit
@@ -618,10 +618,10 @@ module Websocket : sig
     val next_read_operation : t -> [ `Read | `Close ]
 
     val next_write_operation :
-      t -> [ `Write of Bigstringaf.t IOVec.t list | `Yield | `Close of int ]
+      t -> [ `Write of Bstr.t IOVec.t list | `Yield | `Close of int ]
 
-    val read : t -> Bigstringaf.t -> off:int -> len:int -> int
-    val read_eof : t -> Bigstringaf.t -> off:int -> len:int -> int
+    val read : t -> Bstr.t -> off:int -> len:int -> int
+    val read_eof : t -> Bstr.t -> off:int -> len:int -> int
     val report_write_result : t -> [ `Ok of int | `Closed ] -> unit
     val yield_writer : t -> (unit -> unit) -> unit
     val close : t -> unit
@@ -635,10 +635,10 @@ module Websocket : sig
     val next_read_operation : t -> [ `Read | `Close ]
 
     val next_write_operation :
-      t -> [ `Write of Bigstringaf.t IOVec.t list | `Yield | `Close of int ]
+      t -> [ `Write of Bstr.t IOVec.t list | `Yield | `Close of int ]
 
-    val read : t -> Bigstringaf.t -> off:int -> len:int -> int
-    val read_eof : t -> Bigstringaf.t -> off:int -> len:int -> int
+    val read : t -> Bstr.t -> off:int -> len:int -> int
+    val read_eof : t -> Bstr.t -> off:int -> len:int -> int
     val report_write_result : t -> [ `Ok of int | `Closed ] -> unit
     val yield_writer : t -> (unit -> unit) -> unit
     val is_closed : t -> bool
