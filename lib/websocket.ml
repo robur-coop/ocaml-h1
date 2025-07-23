@@ -231,7 +231,11 @@ module Frame = struct
     let off = payload_offset t in
     f t ~off ~len
 
-  let copy_payload t = with_payload t ~f:Bstr.copy
+  let copy_payload =
+    let sub_copy t ~off ~len =
+      Bstr.sub t ~off ~len |> Bstr.copy
+    in
+    fun t -> with_payload t ~f:sub_copy
 
   let copy_payload_bytes t =
     with_payload t ~f:(fun bs ~off:src_off ~len ->
