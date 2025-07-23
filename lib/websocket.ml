@@ -226,22 +226,10 @@ module Frame = struct
     let bits = Bstr.unsafe_get t 1 |> Char.code in
     payload_offset_of_bits bits
 
-  let with_payload t ~f =
+  let payload_view t =
     let len = payload_length t in
     let off = payload_offset t in
-    f t ~off ~len
-
-  let copy_payload =
-    let sub_copy t ~off ~len =
-      Bstr.sub t ~off ~len |> Bstr.copy
-    in
-    fun t -> with_payload t ~f:sub_copy
-
-  let copy_payload_bytes t =
-    with_payload t ~f:(fun bs ~off:src_off ~len ->
-        let bytes = Bytes.create len in
-        Bstr.blit_to_bytes bs ~src_off bytes ~dst_off:0 ~len;
-        bytes)
+    Bstr.sub t ~off ~len
 
   let length_of_offset t off =
     let bits = Bstr.unsafe_get t (off + 1) |> Char.code in
@@ -431,7 +419,9 @@ module Reader = struct
       let is_fin = Frame.is_fin frame in
       let opcode = Frame.opcode frame in
       Frame.unmask_inplace frame;
-      Frame.with_payload frame ~f:(frame_handler ~opcode ~is_fin)
+      let off = Frame.payload_offset frame in
+      let len = Frame.payload_length frame in
+      frame_handler ~opcode ~is_fin frame ~off ~len
     in
     { parser; parse_state = Done; closed = false }
 

@@ -514,10 +514,11 @@ module Websocket : sig
     val unmask_inplace : t -> unit
     val length : t -> int
     val payload_length : t -> int
-    val with_payload : t -> f:(Bstr.t -> off:int -> len:int -> 'a) -> 'a
-    val copy_payload : t -> Bstr.t
-    val copy_payload_bytes : t -> Bytes.t
     val parse : t Angstrom.t
+
+    (* does not allocate a bigstring, but instead returns a
+       new view into the frame payload *)
+    val payload_view : t -> Bstr.t
 
     val serialize_control :
       Faraday.t -> mask:int32 option -> opcode:Opcode.standard_control -> unit
