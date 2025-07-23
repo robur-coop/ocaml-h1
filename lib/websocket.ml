@@ -183,12 +183,12 @@ module Frame = struct
   let payload_length_of_offset t off =
     let bits = Bstr.unsafe_get t (off + 1) |> Char.code in
     let length = bits land 0b01111111 in
-    if length = 126 then Bstr.unsafe_get_int16_be t (off + 2)
+    if length = 126 then Bstr.get_int16_be t (off + 2)
     else if
       (* This is technically unsafe, but if somebody's asking us to read 2^63
        * bytes, then we're already screwd. *)
       length = 127
-    then Bstr.unsafe_get_int64_be t (off + 2) |> Int64.to_int
+    then Bstr.get_int64_be t (off + 2) |> Int64.to_int
     else length
 
   let payload_length t = payload_length_of_offset t 0
@@ -202,15 +202,15 @@ module Frame = struct
     else
       Some
         (let bits = Bstr.unsafe_get t 1 |> Char.code in
-         if bits = 254 then Bstr.unsafe_get_int32_be t 4
-         else if bits = 255 then Bstr.unsafe_get_int32_be t 10
-         else Bstr.unsafe_get_int32_be t 2)
+         if bits = 254 then Bstr.get_int32_be t 4
+         else if bits = 255 then Bstr.get_int32_be t 10
+         else Bstr.get_int32_be t 2)
 
   let mask_exn t =
     let bits = Bstr.unsafe_get t 1 |> Char.code in
-    if bits = 254 then Bstr.unsafe_get_int32_be t 4
-    else if bits = 255 then Bstr.unsafe_get_int32_be t 10
-    else if bits >= 127 then Bstr.unsafe_get_int32_be t 2
+    if bits = 254 then Bstr.get_int32_be t 4
+    else if bits = 255 then Bstr.get_int32_be t 10
+    else if bits >= 127 then Bstr.get_int32_be t 2
     else failwith "Frame.mask_exn: no mask present"
 
   let payload_offset_of_bits bits =
