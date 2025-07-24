@@ -35,7 +35,7 @@ let test_parsing_text_frame () =
   Alcotest.(check int) "payload_length" (Frame.payload_length frame) 11;
   Alcotest.(check int) "length" (Frame.length frame) 17;
   Frame.unmask_inplace frame;
-  let payload = Bytes.to_string (Frame.copy_payload_bytes frame) in
+  let payload = Bstr.to_string (Frame.payload_view frame) in
   Alcotest.(check string) "payload" "1234567890\n" payload
 
 let tests =

@@ -71,7 +71,7 @@ module Oneshot = struct
         | `Error `Bad_request ->
           failwith "H1.Client_connection.request: invalid body length"
       in
-      Body.Writer.create (Bigstringaf.create config.request_body_buffer_size) writer
+      Body.Writer.create (Bstr.create config.request_body_buffer_size) writer
         ~encoding
     in
     let t =

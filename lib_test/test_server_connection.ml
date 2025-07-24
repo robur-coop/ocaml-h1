@@ -33,7 +33,7 @@ module Runtime : sig
   val current_write_operation : t -> Write_operation.t
 
   val do_read : t -> (Server_connection.t -> 'a) -> 'a
-  val do_write : t -> (Server_connection.t -> Bigstringaf.t IOVec.t list -> 'a) -> 'a
+  val do_write : t -> (Server_connection.t -> Bstr.t IOVec.t list -> 'a) -> 'a
 
   (** Returns a [ref] that is set to [true] after the callback was fired *)
   val on_reader_unyield : t -> (unit -> unit) -> bool ref
@@ -196,7 +196,7 @@ let read_eof = read ~eof:true
 
 let feed_string ?eof t str =
   let len = String.length str in
-  let input = Bigstringaf.of_string str ~off:0 ~len in
+  let input = Bstr.of_string str in
   read ?eof t input ~off:0 ~len
 ;;
 
@@ -305,7 +305,7 @@ let echo_handler response reqd =
   let request_body  = Reqd.request_body reqd in
   let response_body = Reqd.respond_with_streaming reqd response in
   let rec on_read buffer ~off ~len =
-    Body.Writer.write_string response_body (Bigstringaf.substring ~off ~len buffer);
+    Body.Writer.write_string response_body (Bstr.sub_string ~off ~len buffer);
     Body.Writer.flush response_body (fun _ ->
       Body.Reader.schedule_read request_body ~on_eof ~on_read)
   and on_eof () =
@@ -361,14 +361,14 @@ let test_initial_reader_state () =
 
 let test_reader_is_closed_after_eof () =
   let t = create default_request_handler in
-  let c = read_eof t Bigstringaf.empty ~off:0 ~len:0 in
+  let c = read_eof t Bstr.empty ~off:0 ~len:0 in
   Alcotest.(check int) "read_eof with no input returns 0" 0 c;
   connection_is_shutdown t;
 
   let t = create default_request_handler in
-  let c = read t Bigstringaf.empty ~off:0 ~len:0 in
+  let c = read t Bstr.empty ~off:0 ~len:0 in
   Alcotest.(check int) "read with no input returns 0" 0 c;
-  let c = read_eof t Bigstringaf.empty ~off:0 ~len:0; in
+  let c = read_eof t Bstr.empty ~off:0 ~len:0; in
   Alcotest.(check int) "read_eof with no input returns 0" 0 c;
   connection_is_shutdown t;
 ;;
@@ -404,8 +404,8 @@ let test_asynchronous_response () =
   let t = create (fun reqd ->
     continue := fun () ->
       Body.Reader.close (Reqd.request_body reqd);
-      let data = Bigstringaf.of_string ~off:0 ~len:response_body_length response_body in
-      let size = Bigstringaf.length data in
+      let data = Bstr.of_string response_body in
+      let size = Bstr.length data in
       let response = Response.create `OK ~headers:(Headers.encoding_fixed size) in
       let response_body =
         Reqd.respond_with_streaming reqd response in
@@ -1105,7 +1105,7 @@ let test_response_finished_before_body_read () =
       Body.Reader.schedule_read
         (Reqd.request_body reqd)
         ~on_read:(fun buf ~off ~len ->
-          rev_body_chunks := Bigstringaf.substring buf ~off ~len :: !rev_body_chunks;
+          rev_body_chunks := Bstr.sub_string buf ~off ~len :: !rev_body_chunks;
           read_body ())
         ~on_eof:ignore;
     in
@@ -1151,7 +1151,7 @@ let test_schedule_read_with_data_available () =
     let did_read = ref false in
     Body.Reader.schedule_read body
       ~on_read:(fun buf ~off ~len ->
-        let actual = Bigstringaf.substring buf ~off ~len in
+        let actual = Bstr.sub_string buf ~off ~len in
         did_read := true;
         Alcotest.(check string) "Body" expected actual)
       ~on_eof:(fun () -> assert false);

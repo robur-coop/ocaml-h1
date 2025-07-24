@@ -33,17 +33,17 @@ module Read_operation = struct
 end
 
 module Write_operation = struct
-  type t = [ `Write of Bigstringaf.t IOVec.t list | `Yield | `Close of int | `Upgrade ]
+  type t = [ `Write of Bstr.t IOVec.t list | `Yield | `Close of int | `Upgrade ]
 
   let iovecs_to_string iovecs =
     let len = IOVec.lengthv iovecs in
     let bytes = Bytes.create len in
     let dst_off = ref 0 in
     List.iter (fun { IOVec.buffer; off = src_off; len } ->
-      Bigstringaf.unsafe_blit_to_bytes buffer ~src_off bytes ~dst_off:!dst_off ~len;
+      Bstr.blit_to_bytes buffer ~src_off bytes ~dst_off:!dst_off ~len;
       dst_off := !dst_off + len)
     iovecs;
-    Bytes.unsafe_to_string bytes
+    Bytes.to_string bytes
   ;;
 
   let pp_hum fmt (t : t) =
