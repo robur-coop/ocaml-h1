@@ -1,5 +1,6 @@
 (*----------------------------------------------------------------------------
     Copyright (c) 2017 Inhabited Type LLC.
+    Copyright (c) 2025 Robur Cooperative
 
     All rights reserved.
 
@@ -201,7 +202,7 @@ let respond_with_upgrade ?reason t headers =
   match t.response_state with
   | Waiting ->
     if not (Request.is_upgrade t.request) then
-      failwith "httpaf.Reqd.respond_with_upgrade: request was not an upgrade request"
+      failwith "H1.Reqd.respond_with_upgrade: request was not an upgrade request"
     else (
       let response = Response.create ?reason ~headers `Switching_protocols in
       t.response_state <- Upgrade response;

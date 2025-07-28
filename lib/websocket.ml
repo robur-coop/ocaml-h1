@@ -1,5 +1,7 @@
 (*----------------------------------------------------------------------------
     Copyright (c) 2018 Inhabited Type LLC.
+    Copyright (c) 2025 Robur Cooperative
+    Copyright (c) 2025 Swrup <swrup@protonmail.com>
 
     All rights reserved.
 
