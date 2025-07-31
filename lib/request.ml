@@ -86,4 +86,8 @@ let pp_hum fmt { meth; target; version; headers } =
 let is_upgrade t =
   match Headers.get t.headers "Connection" with
   | None -> false
-  | Some header_val -> Headers.ci_equal header_val "upgrade"
+  | Some v ->
+      let vs = String.split_on_char ',' v in
+      let vs = List.map String.trim vs in
+      let vs = List.map String.lowercase_ascii vs in
+      List.mem "upgrade" vs
