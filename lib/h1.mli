@@ -1,5 +1,6 @@
 (*----------------------------------------------------------------------------
     Copyright (c) 2017 Inhabited Type LLC.
+    Copyright (c) 2025 Robur Cooperative
 
     All rights reserved.
 
@@ -31,10 +32,10 @@
     POSSIBILITY OF SUCH DAMAGE.
   ----------------------------------------------------------------------------*)
 
-(** Http/af is a high-performance, memory-efficient, and scalable web server
+(** H1 is a high-performance, memory-efficient, and scalable web server
     for OCaml. It implements the HTTP 1.1 specification with respect to
     parsing, serialization, and connection pipelining. For compatibility,
-    http/af respects the imperatives of the [Server_connection] header when handling
+    H1 respects the imperatives of the [Server_connection] header when handling
     HTTP 1.0 connections.
 
     To use this library effectively, the user must be familiar with the HTTP
@@ -264,8 +265,7 @@ module Reqd : sig
   (** Initiate an HTTP upgrade. [Server_connection.next_write_request] and
       [next_read_request] will begin returning [`Upgrade] once the response
       headers have been written, which indicates that the runtime should take
-      over direct control of the socket rather than shuttling bytes through
-      httpaf.
+      over direct control of the socket rather than shuttling bytes through H1.
 
       The headers must indicate a valid upgrade message, e.g. must include
       "Connection: upgrade". See [Request.is_upgrade]. *)
