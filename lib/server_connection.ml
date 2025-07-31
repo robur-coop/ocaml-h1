@@ -55,7 +55,7 @@ type error_handler =
 type t = {
   reader : Reader.request;
   writer : Writer.t;
-  response_body_buffer : Bigstringaf.t;
+  response_body_buffer : Bstr.t;
   request_handler : request_handler;
   error_handler : error_handler;
   request_queue : Reqd.t Queue.t;
@@ -103,7 +103,7 @@ let create ?(config = Config.default) ?(error_handler = default_error_handler)
   let { Config.response_buffer_size; response_body_buffer_size; _ } = config in
   let writer = Writer.create ~buffer_size:response_buffer_size () in
   let request_queue = Queue.create () in
-  let response_body_buffer = Bigstringaf.create response_body_buffer_size in
+  let response_body_buffer = Bstr.create response_body_buffer_size in
   let handler request request_body =
     let reqd =
       Reqd.create error_handler request request_body writer response_body_buffer

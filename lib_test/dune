@@ -1,5 +1,5 @@
 (tests
- (libraries bigstringaf h1 alcotest)
+ (libraries h1 alcotest)
  (modules
    helpers
    test_client_connection

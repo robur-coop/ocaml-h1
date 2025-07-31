@@ -37,7 +37,7 @@ module Reader = struct
     { faraday                        : Faraday.t
     ; mutable read_scheduled         : bool
     ; mutable on_eof                 : unit -> unit
-    ; mutable on_read                : Bigstringaf.t -> off:int -> len:int -> unit
+    ; mutable on_read                : Bstr.t -> off:int -> len:int -> unit
     }
 
   let default_on_eof         = Sys.opaque_identity (fun () -> ())
@@ -51,7 +51,7 @@ module Reader = struct
     }
 
   let create_empty () =
-    let t = create Bigstringaf.empty in
+    let t = create Bstr.empty in
     Faraday.close t.faraday;
     t
 
@@ -143,7 +143,7 @@ module Writer = struct
     if not (Faraday.is_closed t.faraday) then
       Faraday.write_bigstring ?off ?len t.faraday b
 
-  let schedule_bigstring t ?off ?len (b:Bigstringaf.t) =
+  let schedule_bigstring t ?off ?len (b:Bstr.t) =
     if not (Faraday.is_closed t.faraday) then
       Faraday.schedule_bigstring ?off ?len t.faraday b
 
