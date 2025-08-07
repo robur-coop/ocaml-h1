@@ -26,7 +26,7 @@ end
 
 let feed_string t str =
   let len = String.length str in
-  let input = Bigstringaf.of_string str ~off:0 ~len in
+  let input = Bstr.of_string str in
   read t input ~off:0 ~len
 
 let read_string t str =
@@ -114,7 +114,7 @@ let test_get () =
   Body.Writer.close body;
   write_request  t request';
   read_response  t response;
-  let c = read_eof t Bigstringaf.empty ~off:0 ~len:0 in
+  let c = read_eof t Bstr.empty ~off:0 ~len:0 in
   Alcotest.(check int) "read_eof with no input returns 0" 0 c;
   connection_is_shutdown t;
 
@@ -169,7 +169,7 @@ let test_response_eof () =
   write_request  t request';
   writer_closed  t;
   reader_ready t;
-  let c = read_eof t Bigstringaf.empty ~off:0 ~len:0 in
+  let c = read_eof t Bstr.empty ~off:0 ~len:0 in
   Alcotest.(check int) "read_eof with no input returns 0" 0 c;
   connection_is_shutdown t;
   Alcotest.(check (option string)) "unexpected eof"
@@ -304,7 +304,7 @@ let test_schedule_read_with_data_available () =
     let did_read = ref false in
     Body.Reader.schedule_read body
       ~on_read:(fun buf ~off ~len ->
-        let actual = Bigstringaf.substring buf ~off ~len in
+        let actual = Bstr.sub_string buf ~off ~len in
         did_read := true;
         Alcotest.(check string) "Body" expected actual)
       ~on_eof:(fun () -> assert false);

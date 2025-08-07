@@ -16,7 +16,7 @@ depends: [
   "alcotest" {with-test & >= "1.2.0"}
   "stdio" {with-test}
   "base64"
-  "bigstringaf" {>= "0.4.0"}
+  "bstr"
   "angstrom" {>= "0.14.0"}
   "faraday"  {>= "0.6.1"}
   "httpun-types" {>= "0.1.0"}
