@@ -185,7 +185,7 @@ module Frame = struct
   let payload_length_of_offset t off =
     let bits = Bstr.unsafe_get t (off + 1) |> Char.code in
     let length = bits land 0b01111111 in
-    if length = 126 then Bstr.get_int16_be t (off + 2)
+    if length = 126 then Bstr.get_uint16_be t (off + 2)
     else if
       (* This is technically unsafe, but if somebody's asking us to read 2^63
        * bytes, then we're already screwd. *)
@@ -215,12 +215,22 @@ module Frame = struct
     else if bits >= 127 then Bstr.get_int32_be t 2
     else failwith "Frame.mask_exn: no mask present"
 
+  (*  See RFC6455 § 5.2
+
+      Payload length:  7 bits, 7+16 bits, or 7+64 bits
+
+      The length of the "Payload data", in bytes: if 0-125, that is the payload
+      length. If 126, the following 2 bytes interpreted as a 16-bit unsigned
+      integer are the payload length. If 127, the following 8 bytes interpreted
+      as a 64-bit unsigned integer (the most significant bit MUST be 0) are the
+      payload length.
+   *)
   let payload_offset_of_bits bits =
     let initial_offset = 2 in
     let mask_offset = (bits land (1 lsl 7)) lsr (7 - 2) in
     let length_offset =
       let length = bits land 0b01111111 in
-      if length < 126 then 0 else 2 lsl (length land 0b1) lsl 2
+      if length < 126 then 0 else if length = 126 then 2 else 8
     in
     initial_offset + mask_offset + length_offset
 
