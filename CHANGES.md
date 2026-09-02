@@ -1,3 +1,7 @@
+## v1.1.1
+
+- Fix a bug on websocket frames and how we get the length of a frame (@dinosaure, #19)
+
 ## v1.1.0
 
 - Add the websocket implementation (@swrup, @dinosaure, #8)
