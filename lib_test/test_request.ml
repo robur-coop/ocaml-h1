@@ -74,6 +74,12 @@ let test_body_length () =
     ~expect:`Chunked
     (req `GET Headers.encoding_chunked);
   check
+    "both content-length and transfer-encoding"
+    ~expect:(`Error `Bad_request)
+    (req `POST
+       (Headers.of_list
+          [ "Content-Length", "10"; "Transfer-Encoding", "chunked" ]));
+  check
     "chunked multiple times"
     ~expect:`Chunked
     (req `GET Headers.(encoding_chunked @ encoding_chunked));
