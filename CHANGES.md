@@ -1,3 +1,7 @@
+## v1.1.2
+
+- Reject incoming requests when they have Content-Length and Transfer-Encoding fields in the header (@Willenbrink, @hannesm, @dinosaure, #21)
+
 ## v1.1.1
 
 - Fix a bug on websocket frames and how we get the length of a frame (@dinosaure, #19)
