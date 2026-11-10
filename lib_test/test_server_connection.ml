@@ -482,6 +482,27 @@ let test_streaming_response () =
   writer_yielded t;
 ;;
 
+let test_head_fixed_response () =
+  let request = Request.create `HEAD "/" ~headers:Headers.connection_close in
+  let response = Response.create `OK ~headers:(Headers.encoding_fixed 11) in
+  let t = create (fun reqd ->
+    Body.Reader.close (Reqd.request_body reqd);
+    Reqd.respond_with_string reqd response "Hello world"
+  ) in
+  read_request t request;
+  write_response t response;
+  connection_is_shutdown t;
+;;
+
+let test_head_streaming_response () =
+  let request = Request.create `HEAD "/" ~headers:Headers.connection_close in
+  let response = Response.create `OK ~headers:(Headers.encoding_fixed 11) in
+  let t = create (streaming_handler response [ "Hello "; "world!" ]) in
+  read_request t request;
+  write_response t response;
+  connection_is_shutdown t;
+;;
+
 let test_asynchronous_streaming_response () =
   let request  = Request.create `GET "/" ~headers:Headers.connection_close in
   let response = Response.create `OK in
@@ -1264,6 +1285,8 @@ let tests =
   ; "asynchronous response" , `Quick, test_asynchronous_response
   ; "echo POST"             , `Quick, test_echo_post
   ; "streaming response"    , `Quick, test_streaming_response
+  ; "HEAD fixed response has no body", `Quick, test_head_fixed_response
+  ; "HEAD streaming response has no body", `Quick, test_head_streaming_response
   ; "asynchronous streaming response", `Quick, test_asynchronous_streaming_response
   ; "asynchronous streaming response, immediate flush", `Quick, test_asynchronous_streaming_response_with_immediate_flush
   ; "empty fixed streaming response", `Quick, test_empty_fixed_streaming_response

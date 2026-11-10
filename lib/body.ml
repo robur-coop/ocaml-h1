@@ -114,9 +114,10 @@ module Writer = struct
     ; writer         : Writer.t
     ; encoding       : encoding
     ; buffered_bytes : int ref
+    ; discard        : bool
     }
 
-  let of_faraday faraday writer ~encoding =
+  let of_faraday ?(discard = false) faraday writer ~encoding =
     let encoding =
       match encoding with
       | `Fixed _ | `Close_delimited -> Identity
@@ -126,36 +127,56 @@ module Writer = struct
     ; encoding
     ; writer
     ; buffered_bytes = ref 0
+    ; discard
     }
 
   let create buffer writer ~encoding =
     of_faraday (Faraday.of_bigstring buffer) writer ~encoding
 
+  let create_empty writer =
+    let t =
+      of_faraday (Faraday.of_bigstring Bstr.empty) writer ~encoding:(`Fixed 0L)
+    in
+    Faraday.close t.faraday;
+    t
+
+  let create_discard writer =
+    of_faraday
+      ~discard:true
+      (Faraday.of_bigstring Bstr.empty)
+      writer
+      ~encoding:(`Fixed 0L)
+
   let write_char t c =
-    if not (Faraday.is_closed t.faraday) then
+    if not t.discard && not (Faraday.is_closed t.faraday) then
       Faraday.write_char t.faraday c
 
   let write_string t ?off ?len s =
-    if not (Faraday.is_closed t.faraday) then
+    if not t.discard && not (Faraday.is_closed t.faraday) then
       Faraday.write_string ?off ?len t.faraday s
 
   let write_bigstring t ?off ?len b =
-    if not (Faraday.is_closed t.faraday) then
+    if not t.discard && not (Faraday.is_closed t.faraday) then
       Faraday.write_bigstring ?off ?len t.faraday b
 
   let schedule_bigstring t ?off ?len (b:Bstr.t) =
-    if not (Faraday.is_closed t.faraday) then
+    if not t.discard && not (Faraday.is_closed t.faraday) then
       Faraday.schedule_bigstring ?off ?len t.faraday b
 
   let ready_to_write t = Writer.wakeup t.writer
 
   let flush t kontinue =
-    Faraday.flush t.faraday kontinue;
-    ready_to_write t
+    if t.discard then kontinue ()
+    else begin
+      Faraday.flush t.faraday kontinue;
+      ready_to_write t
+    end
 
   let flush_with_reason t kontinue =
     if Writer.is_closed t.writer then
       kontinue `Closed
+    else if t.discard then
+      kontinue `Written
     else begin
       Faraday.flush_with_reason t.faraday (fun reason ->
         let result =
@@ -194,7 +215,8 @@ module Writer = struct
 
   let transfer_to_writer t =
     let faraday = t.faraday in
-    if Writer.is_closed t.writer then
+    if t.discard then ()
+    else if Writer.is_closed t.writer then
       close_and_drain t
     else begin
       match Faraday.operation faraday with
