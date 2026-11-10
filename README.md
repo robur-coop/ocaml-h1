@@ -5,7 +5,8 @@ OCaml. It implements the HTTP 1.1 specification with respect to parsing,
 serialization, and connection pipelining as a state machine that is agnostic to
 the underlying IO mechanism, and is therefore portable across many platform.
 It uses the [Angstrom][angstrom] and [Faraday][faraday] libraries to implement
-the parsing and serialization layers of the HTTP standard, hence the name.
+the parsing and serialization layers of the HTTP standard, hence the original
+name `httpaf`.
 
 [angstrom]: https://github.com/inhabitedtype/angstrom
 [faraday]: https://github.com/inhabitedtype/faraday
